@@ -1,12 +1,70 @@
-/* src/index.css */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+@import "tailwindcss";
+
+@theme {
+  /* Backgrounds / surfaces */
+  --color-bg: #0a0612;
+  --color-bg-elevated: #120a24;
+  --color-surface: #1a0f30;
+  --color-surface-hover: #22123d;
+  --color-border: #2d1a52;
+
+  /* Primary accent: neon purple */
+  --color-primary-50: #f3e8ff;
+  --color-primary-300: #c084fc;
+  --color-primary-400: #a855f7;
+  --color-primary-500: #9333ea;
+  --color-primary-600: #7e22ce;
+  --color-primary-glow: #c026f6;
+
+  /* Secondary accent: electric cyan */
+  --color-accent-400: #22d3ee;
+  --color-accent-500: #06b6d4;
+
+  /* Rating/warn accent */
+  --color-warn-400: #facc15;
+
+  /* Text */
+  --color-text: #f3f0fa;
+  --color-text-muted: #a99fc0;
+  --color-text-faint: #6b6280;
+
+  /* Fonts */
+  --font-sans: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Space Grotesk", "Inter", sans-serif;
+
+  /* Radius */
+  --radius-card: 1rem;
+  --radius-pill: 999px;
+
+  /* Glow shadow */
+  --shadow-glow: 0 0 20px rgba(147, 51, 234, 0.45);
+  --shadow-glow-lg: 0 0 32px rgba(192, 38, 246, 0.5);
 }
 
-body {
-  background-color: #f8f9fa;
-  color: #1a1a1a;
+@layer base {
+  body {
+    @apply bg-bg text-text font-sans;
+  }
+}
+
+@layer utilities {
+  .glow {
+    box-shadow: var(--shadow-glow);
+  }
+  .glow-lg {
+    box-shadow: var(--shadow-glow-lg);
+  }
+
+  @keyframes pulse-glow {
+    0%,
+    100% {
+      box-shadow: 0 0 10px rgba(147, 51, 234, 0.35);
+    }
+    50% {
+      box-shadow: 0 0 22px rgba(147, 51, 234, 0.6);
+    }
+  }
+  .animate-glow-pulse {
+    animation: pulse-glow 2.5s ease-in-out infinite;
+  }
 }
