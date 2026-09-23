@@ -22,11 +22,11 @@ function RestaurantCard({ restaurant }) {
         <div className="flex items-center justify-between border-t border-border pt-3 text-sm text-text-muted">
           <span className="flex items-center gap-1">
             <Clock size={16} className="text-accent-400" />
-            {restaurant.deliveryTime}
+            {restaurant.delivery_time}
           </span>
           <span className="flex items-center gap-1">
             <Bike size={16} className="text-accent-400" />
-            €{restaurant.deliveryFee.toFixed(2)} bezorging
+            €{Number(restaurant.delivery_fee).toFixed(2)} bezorging
           </span>
         </div>
       </div>

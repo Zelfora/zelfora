@@ -1,12 +1,23 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
-import { mockRestaurants } from '../mockData';
+import { supabase } from '../supabaseClient';
 import RestaurantCard from '../components/RestaurantCard';
 
 function Home() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [restaurants, setRestaurants] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredRestaurants = mockRestaurants.filter((res) =>
+  useEffect(() => {
+    async function load() {
+      const { data, error } = await supabase.from('restaurants').select('*').order('name');
+      if (!error) setRestaurants(data);
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  const filteredRestaurants = restaurants.filter((res) =>
     res.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     res.cuisine.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -26,14 +37,22 @@ function Home() {
 
       <h2 className="mb-6 font-display text-2xl font-semibold text-text">Aanbevolen restaurants</h2>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {filteredRestaurants.map((restaurant) => (
-          <RestaurantCard key={restaurant.id} restaurant={restaurant} />
-        ))}
-      </div>
+      {loading ? (
+        <p className="text-text-muted">Restaurants laden...</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredRestaurants.map((restaurant) => (
+              <RestaurantCard key={restaurant.id} restaurant={restaurant} />
+            ))}
+          </div>
 
-      {filteredRestaurants.length === 0 && (
-        <p className="mt-12 text-center text-text-muted">Geen restaurants gevonden voor &quot;{searchQuery}&quot;.</p>
+          {filteredRestaurants.length === 0 && (
+            <p className="mt-12 text-center text-text-muted">
+              Geen restaurants gevonden voor &quot;{searchQuery}&quot;.
+            </p>
+          )}
+        </>
       )}
     </main>
   );

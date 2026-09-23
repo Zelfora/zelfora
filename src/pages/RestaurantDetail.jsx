@@ -1,13 +1,33 @@
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Clock, Bike } from 'lucide-react';
-import { mockRestaurants, mockMenus } from '../mockData';
+import { supabase } from '../supabaseClient';
 import StarRating from '../components/StarRating';
 import MenuItemCard from '../components/MenuItemCard';
 
 function RestaurantDetail() {
   const { id } = useParams();
-  const restaurant = mockRestaurants.find((r) => r.id === id);
-  const menu = mockMenus[id] ?? [];
+  const [restaurant, setRestaurant] = useState(null);
+  const [menu, setMenu] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      const [{ data: restaurantData }, { data: menuData }] = await Promise.all([
+        supabase.from('restaurants').select('*').eq('id', id).maybeSingle(),
+        supabase.from('menu_items').select('*').eq('restaurant_id', id),
+      ]);
+      setRestaurant(restaurantData);
+      setMenu(menuData ?? []);
+      setLoading(false);
+    }
+    load();
+  }, [id]);
+
+  if (loading) {
+    return <main className="px-4 py-16 text-center text-text-muted md:px-8">Laden...</main>;
+  }
 
   if (!restaurant) {
     return (
@@ -45,11 +65,11 @@ function RestaurantDetail() {
           <span>{restaurant.cuisine}</span>
           <span className="flex items-center gap-1">
             <Clock size={16} className="text-accent-400" />
-            {restaurant.deliveryTime}
+            {restaurant.delivery_time}
           </span>
           <span className="flex items-center gap-1">
             <Bike size={16} className="text-accent-400" />
-            €{restaurant.deliveryFee.toFixed(2)} bezorging
+            €{Number(restaurant.delivery_fee).toFixed(2)} bezorging
           </span>
         </div>
 
@@ -79,7 +99,7 @@ function RestaurantDetail() {
                 {menu
                   .filter((item) => item.category === category)
                   .map((item) => (
-                    <MenuItemCard key={item.id} item={item} />
+                    <MenuItemCard key={item.id} item={item} restaurant={restaurant} />
                   ))}
               </div>
             </div>
