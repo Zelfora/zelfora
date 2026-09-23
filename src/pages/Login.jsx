@@ -26,19 +26,21 @@ function Login() {
     setError('');
     setInfo('');
     setSubmitting(true);
+    // Text Replacement shortcuts usually append a space.
+    const address = email.trim();
     try {
       if (mode === 'signup') {
-        const session = await signUp(email, password);
+        const session = await signUp(address, password);
         if (session) {
           navigate(redirectTo, { replace: true });
         } else {
           setInfo(t('login.checkEmail'));
         }
       } else if (mode === 'forgot') {
-        await sendPasswordReset(email);
+        await sendPasswordReset(address);
         setInfo(t('login.resetSent'));
       } else {
-        await signIn(email, password);
+        await signIn(address, password);
         navigate(redirectTo, { replace: true });
       }
     } catch (err) {
@@ -60,17 +62,38 @@ function Login() {
         <h1 className="mb-6 font-display text-2xl font-semibold text-text">{t(`login.title.${mode}`)}</h1>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <label htmlFor="login-email" className="sr-only">
+            {t('login.email')}
+          </label>
+          {/* type="text" + inputMode="email" instead of type="email": iOS disables
+              autocorrect in email fields, which also blocks Text Replacement
+              shortcuts (e.g. "@@" -> full address). The email keyboard, format
+              check and password-manager hints are kept via the other attributes. */}
           <input
-            type="email"
+            id="login-email"
+            name="email"
+            type="text"
+            inputMode="email"
             required
-            autoComplete="email"
+            autoComplete={mode === 'forgot' ? 'email' : 'username'}
+            autoCapitalize="none"
+            autoCorrect="on"
+            pattern="\s*[^@\s]+@[^@\s]+\.[^@\s]+\s*"
+            title={t('login.emailInvalid')}
             placeholder={t('login.email')}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="rounded-pill border border-border bg-bg px-4 py-2.5 text-text placeholder:text-text-faint outline-none focus:border-primary-500 focus:shadow-glow"
           />
           {mode !== 'forgot' && (
+            <label htmlFor="login-password" className="sr-only">
+              {t('login.password')}
+            </label>
+          )}
+          {mode !== 'forgot' && (
             <input
+              id="login-password"
+              name="password"
               type="password"
               required
               minLength={8}
@@ -92,7 +115,7 @@ function Login() {
             </button>
           )}
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-danger">{error}</p>}
           {info && <p className="text-sm text-accent-400">{info}</p>}
 
           <button

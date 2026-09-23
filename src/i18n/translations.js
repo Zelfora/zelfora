@@ -19,6 +19,11 @@ export const translations = {
     'nav.signIn': 'Inloggen',
     'nav.signOut': 'Uitloggen',
     'nav.language': 'Taal kiezen',
+    'nav.theme': 'Weergave kiezen',
+
+    'theme.system': 'Systeem',
+    'theme.light': 'Licht',
+    'theme.dark': 'Donker',
 
     'home.searchPlaceholder': 'Zoek naar restaurants of gerechten...',
     'home.featured': 'Aanbevolen restaurants',
@@ -61,6 +66,7 @@ export const translations = {
     'login.submit.forgot': 'Stuur resetlink',
     'login.email': 'E-mailadres',
     'login.password': 'Wachtwoord',
+    'login.emailInvalid': 'Vul een geldig e-mailadres in.',
     'login.forgotLink': 'Wachtwoord vergeten?',
     'login.backToSignIn': 'Terug naar inloggen',
     'login.toSignUp': 'Nog geen account? Maak er een aan',
@@ -113,6 +119,11 @@ export const translations = {
     'nav.signIn': 'Sign in',
     'nav.signOut': 'Sign out',
     'nav.language': 'Choose language',
+    'nav.theme': 'Choose theme',
+
+    'theme.system': 'System',
+    'theme.light': 'Light',
+    'theme.dark': 'Dark',
 
     'home.searchPlaceholder': 'Search for restaurants or dishes...',
     'home.featured': 'Featured restaurants',
@@ -155,6 +166,7 @@ export const translations = {
     'login.submit.forgot': 'Send reset link',
     'login.email': 'Email address',
     'login.password': 'Password',
+    'login.emailInvalid': 'Please enter a valid email address.',
     'login.forgotLink': 'Forgot password?',
     'login.backToSignIn': 'Back to sign in',
     'login.toSignUp': "Don't have an account? Create one",
@@ -206,6 +218,11 @@ export const translations = {
     'nav.signIn': 'Anmelden',
     'nav.signOut': 'Abmelden',
     'nav.language': 'Sprache wählen',
+    'nav.theme': 'Darstellung wählen',
+
+    'theme.system': 'System',
+    'theme.light': 'Hell',
+    'theme.dark': 'Dunkel',
 
     'home.searchPlaceholder': 'Nach Restaurants oder Gerichten suchen...',
     'home.featured': 'Empfohlene Restaurants',
@@ -248,6 +265,7 @@ export const translations = {
     'login.submit.forgot': 'Link zum Zurücksetzen senden',
     'login.email': 'E-Mail-Adresse',
     'login.password': 'Passwort',
+    'login.emailInvalid': 'Bitte gib eine gültige E-Mail-Adresse ein.',
     'login.forgotLink': 'Passwort vergessen?',
     'login.backToSignIn': 'Zurück zur Anmeldung',
     'login.toSignUp': 'Noch kein Konto? Jetzt erstellen',

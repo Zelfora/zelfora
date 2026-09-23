@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useTranslation } from '../context/LanguageContext';
 import LanguageSwitcher from './LanguageSwitcher';
+import ThemeSwitcher from './ThemeSwitcher';
 
 function Navbar() {
   const { user, signOut } = useAuth();
@@ -26,7 +27,8 @@ function Navbar() {
           Zelfora<span className="text-text-muted">.nl</span>
         </Link>
 
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
+          <ThemeSwitcher />
           <LanguageSwitcher />
 
           <Link

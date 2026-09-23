@@ -20,6 +20,9 @@
   --color-accent-400: #22d3ee;
   --color-accent-500: #06b6d4;
 
+  /* Errors */
+  --color-danger: #f87171;
+
   /* Rating/warn accent */
   --color-warn-400: #facc15;
 
@@ -41,8 +44,41 @@
   --shadow-glow-lg: 0 0 32px rgba(192, 38, 246, 0.5);
 }
 
+/* Light theme: same palette, lifted backgrounds and deeper accents so text
+   colors keep enough contrast on white. Dark (the @theme values) is default. */
+:root {
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --color-bg: #f7f4fc;
+  --color-bg-elevated: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f1eafb;
+  --color-border: #e2d8f3;
+
+  --color-primary-300: #7e22ce;
+  --color-primary-400: #9333ea;
+  --color-primary-600: #6b21a8;
+
+  --color-accent-400: #0891b2;
+
+  --color-danger: #dc2626;
+  --color-warn-400: #eab308;
+
+  --color-text: #1a1030;
+  --color-text-muted: #5b5070;
+  --color-text-faint: #8a80a0;
+
+  --shadow-glow: 0 0 20px rgba(147, 51, 234, 0.2);
+  --shadow-glow-lg: 0 0 28px rgba(147, 51, 234, 0.3);
+}
+
 @layer base {
   body {
+    transition: background-color 0.2s ease, color 0.2s ease;
     @apply bg-bg text-text font-sans;
   }
 }

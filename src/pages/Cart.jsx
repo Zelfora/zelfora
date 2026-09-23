@@ -76,7 +76,7 @@ function Cart() {
             </div>
             <button
               onClick={() => removeItem(item.id)}
-              className="text-text-faint transition-colors hover:text-red-400"
+              className="text-text-faint transition-colors hover:text-danger"
               aria-label={t('cart.remove', { name: item.name })}
             >
               <Trash2 size={18} />
@@ -90,7 +90,7 @@ function Cart() {
         <span>{formatPrice(subtotal)}</span>
       </div>
 
-      {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+      {error && <p className="mt-3 text-sm text-danger">{error}</p>}
 
       <button
         onClick={handlePlaceOrder}

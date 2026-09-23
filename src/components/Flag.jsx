@@ -4,7 +4,7 @@ import { useId } from 'react';
 function Flag({ code, className = 'h-3.5 w-5' }) {
   const id = useId();
   const shared = {
-    className: `${className} flex-shrink-0 overflow-hidden rounded-[3px] ring-1 ring-white/15`,
+    className: `${className} flex-shrink-0 overflow-hidden rounded-[3px] ring-1 ring-text/15`,
     preserveAspectRatio: 'xMidYMid slice',
     'aria-hidden': true,
   };

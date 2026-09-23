@@ -75,7 +75,7 @@ function Profile() {
           </Link>
           <button
             onClick={handleSignOut}
-            className="rounded-pill border border-border px-4 py-2 text-sm font-medium text-text transition-colors hover:border-red-400 hover:text-red-400"
+            className="rounded-pill border border-border px-4 py-2 text-sm font-medium text-text transition-colors hover:border-danger hover:text-danger"
           >
             {t('nav.signOut')}
           </button>
@@ -117,7 +117,7 @@ function Profile() {
             className={inputClass}
           />
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-danger">{error}</p>}
           {info && <p className="text-sm text-accent-400">{info}</p>}
 
           <button
