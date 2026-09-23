@@ -3,6 +3,13 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { authErrorMessage, useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 
+const inputClass =
+  'rounded-pill border border-border bg-bg px-4 py-2.5 text-text placeholder:text-text-faint outline-none focus:border-primary-500 focus:shadow-glow';
+
+// Standard login markup so iCloud Keychain and other password managers work.
+// Note: iOS always treats the email field here as the Keychain username field
+// (even outside the <form> or on a separate step), so iOS email suggestions and
+// Text Replacement shortcuts can't be shown in it. Tested extensively; don't retry.
 function Login() {
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup' | 'forgot'
   const [email, setEmail] = useState('');
@@ -26,7 +33,6 @@ function Login() {
     setError('');
     setInfo('');
     setSubmitting(true);
-    // Text Replacement shortcuts usually append a space.
     const address = email.trim();
     try {
       if (mode === 'signup') {
@@ -65,44 +71,36 @@ function Login() {
           <label htmlFor="login-email" className="sr-only">
             {t('login.email')}
           </label>
-          {/* type="text" + inputMode="email" instead of type="email": iOS disables
-              autocorrect in email fields, which also blocks Text Replacement
-              shortcuts (e.g. "@@" -> full address). The email keyboard, format
-              check and password-manager hints are kept via the other attributes. */}
           <input
             id="login-email"
             name="email"
-            type="text"
-            inputMode="email"
+            type="email"
             required
             autoComplete={mode === 'forgot' ? 'email' : 'username'}
-            autoCapitalize="none"
-            autoCorrect="on"
-            pattern="\s*[^@\s]+@[^@\s]+\.[^@\s]+\s*"
-            title={t('login.emailInvalid')}
             placeholder={t('login.email')}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="rounded-pill border border-border bg-bg px-4 py-2.5 text-text placeholder:text-text-faint outline-none focus:border-primary-500 focus:shadow-glow"
+            className={inputClass}
           />
+
           {mode !== 'forgot' && (
-            <label htmlFor="login-password" className="sr-only">
-              {t('login.password')}
-            </label>
-          )}
-          {mode !== 'forgot' && (
-            <input
-              id="login-password"
-              name="password"
-              type="password"
-              required
-              minLength={8}
-              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-              placeholder={t('login.password')}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="rounded-pill border border-border bg-bg px-4 py-2.5 text-text placeholder:text-text-faint outline-none focus:border-primary-500 focus:shadow-glow"
-            />
+            <>
+              <label htmlFor="login-password" className="sr-only">
+                {t('login.password')}
+              </label>
+              <input
+                id="login-password"
+                name="password"
+                type="password"
+                required
+                minLength={8}
+                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                placeholder={t('login.password')}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={inputClass}
+              />
+            </>
           )}
 
           {mode === 'signin' && (
