@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authErrorMessage, useAuth } from '../context/AuthContext';
+import { useTranslation } from '../context/LanguageContext';
 
 // Landing page for the password-recovery email link. Supabase exchanges the
 // token in the URL for a session, so by the time this renders the user is
@@ -11,13 +12,15 @@ function ResetPassword() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const { user, loading, updatePassword } = useAuth();
+  const i18n = useTranslation();
+  const { t } = i18n;
   const navigate = useNavigate();
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
     if (password !== confirm) {
-      setError('De wachtwoorden komen niet overeen.');
+      setError(t('password.mismatch'));
       return;
     }
     setSubmitting(true);
@@ -25,26 +28,26 @@ function ResetPassword() {
       await updatePassword(password);
       navigate('/', { replace: true });
     } catch (err) {
-      setError(authErrorMessage(err));
+      setError(authErrorMessage(err, i18n));
     } finally {
       setSubmitting(false);
     }
   }
 
   if (loading) {
-    return <main className="px-4 py-16 text-center text-text-muted md:px-8">Laden...</main>;
+    return <main className="px-4 py-16 text-center text-text-muted md:px-8">{t('common.loading')}</main>;
   }
 
   return (
     <main className="mx-auto flex max-w-md flex-col px-4 py-16 md:px-8">
       <div className="rounded-card border border-border bg-surface/70 p-8 backdrop-blur-md">
-        <h1 className="mb-6 font-display text-2xl font-semibold text-text">Nieuw wachtwoord instellen</h1>
+        <h1 className="mb-6 font-display text-2xl font-semibold text-text">{t('reset.title')}</h1>
 
         {!user ? (
           <p className="text-sm text-text-muted">
-            Deze link is ongeldig of verlopen.{' '}
+            {t('reset.invalidLink')}{' '}
             <Link to="/login" className="text-primary-300 hover:underline">
-              Vraag een nieuwe aan
+              {t('reset.requestNew')}
             </Link>
             .
           </p>
@@ -55,7 +58,7 @@ function ResetPassword() {
               required
               minLength={8}
               autoComplete="new-password"
-              placeholder="Nieuw wachtwoord"
+              placeholder={t('password.new')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="rounded-pill border border-border bg-bg px-4 py-2.5 text-text placeholder:text-text-faint outline-none focus:border-primary-500 focus:shadow-glow"
@@ -65,7 +68,7 @@ function ResetPassword() {
               required
               minLength={8}
               autoComplete="new-password"
-              placeholder="Herhaal wachtwoord"
+              placeholder={t('password.repeat')}
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               className="rounded-pill border border-border bg-bg px-4 py-2.5 text-text placeholder:text-text-faint outline-none focus:border-primary-500 focus:shadow-glow"
@@ -78,7 +81,7 @@ function ResetPassword() {
               disabled={submitting}
               className="mt-2 rounded-pill bg-gradient-to-r from-primary-500 to-accent-500 px-5 py-2.5 font-semibold text-white shadow-glow transition-transform hover:scale-[1.02] disabled:opacity-60"
             >
-              {submitting ? 'Even geduld...' : 'Wachtwoord opslaan'}
+              {submitting ? t('common.pleaseWait') : t('reset.save')}
             </button>
           </form>
         )}

@@ -1,18 +1,7 @@
 import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { authErrorMessage, useAuth } from '../context/AuthContext';
-
-const TITLES = {
-  signin: 'Inloggen',
-  signup: 'Account aanmaken',
-  forgot: 'Wachtwoord vergeten',
-};
-
-const SUBMIT_LABELS = {
-  signin: 'Inloggen',
-  signup: 'Account aanmaken',
-  forgot: 'Stuur resetlink',
-};
+import { useTranslation } from '../context/LanguageContext';
 
 function Login() {
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup' | 'forgot'
@@ -22,6 +11,8 @@ function Login() {
   const [info, setInfo] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const { user, loading, signIn, signUp, sendPasswordReset } = useAuth();
+  const i18n = useTranslation();
+  const { t } = i18n;
   const navigate = useNavigate();
   const location = useLocation();
   const redirectTo = location.state?.from?.pathname ?? '/';
@@ -41,17 +32,17 @@ function Login() {
         if (session) {
           navigate(redirectTo, { replace: true });
         } else {
-          setInfo('Account aangemaakt! Check je inbox en klik op de bevestigingslink om in te loggen.');
+          setInfo(t('login.checkEmail'));
         }
       } else if (mode === 'forgot') {
         await sendPasswordReset(email);
-        setInfo('Als er een account bij dit e-mailadres hoort, ontvang je een link om je wachtwoord te herstellen.');
+        setInfo(t('login.resetSent'));
       } else {
         await signIn(email, password);
         navigate(redirectTo, { replace: true });
       }
     } catch (err) {
-      setError(authErrorMessage(err));
+      setError(authErrorMessage(err, i18n));
     } finally {
       setSubmitting(false);
     }
@@ -66,14 +57,14 @@ function Login() {
   return (
     <main className="mx-auto flex max-w-md flex-col px-4 py-16 md:px-8">
       <div className="rounded-card border border-border bg-surface/70 p-8 backdrop-blur-md">
-        <h1 className="mb-6 font-display text-2xl font-semibold text-text">{TITLES[mode]}</h1>
+        <h1 className="mb-6 font-display text-2xl font-semibold text-text">{t(`login.title.${mode}`)}</h1>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <input
             type="email"
             required
             autoComplete="email"
-            placeholder="E-mailadres"
+            placeholder={t('login.email')}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="rounded-pill border border-border bg-bg px-4 py-2.5 text-text placeholder:text-text-faint outline-none focus:border-primary-500 focus:shadow-glow"
@@ -84,7 +75,7 @@ function Login() {
               required
               minLength={8}
               autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-              placeholder="Wachtwoord"
+              placeholder={t('login.password')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="rounded-pill border border-border bg-bg px-4 py-2.5 text-text placeholder:text-text-faint outline-none focus:border-primary-500 focus:shadow-glow"
@@ -97,7 +88,7 @@ function Login() {
               onClick={() => switchMode('forgot')}
               className="-mt-2 self-end text-xs text-text-muted hover:text-primary-300"
             >
-              Wachtwoord vergeten?
+              {t('login.forgotLink')}
             </button>
           )}
 
@@ -109,20 +100,20 @@ function Login() {
             disabled={submitting}
             className="mt-2 rounded-pill bg-gradient-to-r from-primary-500 to-accent-500 px-5 py-2.5 font-semibold text-white shadow-glow transition-transform hover:scale-[1.02] disabled:opacity-60"
           >
-            {submitting ? 'Even geduld...' : SUBMIT_LABELS[mode]}
+            {submitting ? t('common.pleaseWait') : t(`login.submit.${mode}`)}
           </button>
         </form>
 
         {mode === 'forgot' ? (
           <button onClick={() => switchMode('signin')} className="mt-4 text-sm text-text-muted hover:text-primary-300">
-            Terug naar inloggen
+            {t('login.backToSignIn')}
           </button>
         ) : (
           <button
             onClick={() => switchMode(mode === 'signup' ? 'signin' : 'signup')}
             className="mt-4 text-sm text-text-muted hover:text-primary-300"
           >
-            {mode === 'signup' ? 'Heb je al een account? Log in' : 'Nog geen account? Maak er een aan'}
+            {mode === 'signup' ? t('login.toSignIn') : t('login.toSignUp')}
           </button>
         )}
       </div>

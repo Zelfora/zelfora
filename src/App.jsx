@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import ResetPassword from './pages/ResetPassword';
 import Cart from './pages/Cart';
 import Orders from './pages/Orders';
+import Profile from './pages/Profile';
 import './index.css';
 
 function App() {
@@ -31,6 +32,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Orders />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
             </ProtectedRoute>
           }
         />

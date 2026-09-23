@@ -1,8 +1,11 @@
 import { Link } from 'react-router-dom';
 import { Clock, Bike } from 'lucide-react';
 import StarRating from './StarRating';
+import { useTranslation } from '../context/LanguageContext';
 
 function RestaurantCard({ restaurant }) {
+  const { t, formatPrice } = useTranslation();
+
   return (
     <Link
       to={`/restaurant/${restaurant.id}`}
@@ -26,7 +29,7 @@ function RestaurantCard({ restaurant }) {
           </span>
           <span className="flex items-center gap-1">
             <Bike size={16} className="text-accent-400" />
-            €{Number(restaurant.delivery_fee).toFixed(2)} bezorging
+            {t('restaurant.deliveryFee', { fee: formatPrice(restaurant.delivery_fee) })}
           </span>
         </div>
       </div>

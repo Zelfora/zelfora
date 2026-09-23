@@ -1,11 +1,14 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { ShoppingCart } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { useTranslation } from '../context/LanguageContext';
+import LanguageSwitcher from './LanguageSwitcher';
 
 function Navbar() {
   const { user, signOut } = useAuth();
   const { itemCount } = useCart();
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   async function handleSignOut() {
@@ -15,7 +18,7 @@ function Navbar() {
 
   return (
     <nav className="sticky top-0 z-50 border-b border-border bg-bg-elevated/80 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 md:px-8">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 md:px-8">
         <Link
           to="/"
           className="font-display text-xl font-bold bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent"
@@ -23,11 +26,13 @@ function Navbar() {
           Zelfora<span className="text-text-muted">.nl</span>
         </Link>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <LanguageSwitcher />
+
           <Link
             to="/cart"
             className="relative cursor-pointer text-text-muted transition-colors hover:text-primary-300"
-            aria-label="Winkelwagen"
+            aria-label={t('nav.cart')}
           >
             <ShoppingCart size={22} />
             {itemCount > 0 && (
@@ -39,22 +44,34 @@ function Navbar() {
 
           {user ? (
             <div className="flex items-center gap-3">
-              <Link to="/orders" className="text-sm text-text-muted hover:text-primary-300">
-                Mijn bestellingen
+              <Link to="/orders" className="hidden text-sm text-text-muted hover:text-primary-300 md:inline">
+                {t('nav.orders')}
               </Link>
               <button
                 onClick={handleSignOut}
-                className="rounded-pill border border-border px-4 py-2 text-sm font-medium text-text transition-colors hover:border-primary-500"
+                className="hidden rounded-pill border border-border px-4 py-2 text-sm font-medium text-text transition-colors hover:border-primary-500 sm:inline-block"
               >
-                Uitloggen
+                {t('nav.signOut')}
               </button>
+              <NavLink
+                to="/profile"
+                aria-label={t('nav.profile')}
+                title={t('nav.profile')}
+                className={({ isActive }) =>
+                  `flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-accent-500 font-display text-sm font-bold uppercase text-white transition-transform hover:scale-105 ${
+                    isActive ? 'shadow-glow-lg ring-2 ring-primary-300' : 'shadow-glow'
+                  }`
+                }
+              >
+                {user.email?.[0] ?? '?'}
+              </NavLink>
             </div>
           ) : (
             <Link
               to="/login"
               className="rounded-pill bg-gradient-to-r from-primary-500 to-accent-500 px-5 py-2 text-sm font-semibold text-white shadow-glow transition-transform hover:scale-105"
             >
-              Inloggen
+              {t('nav.signIn')}
             </Link>
           )}
         </div>

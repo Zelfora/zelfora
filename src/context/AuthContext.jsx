@@ -52,6 +52,22 @@ export function AuthProvider({ children }) {
     if (error) throw error;
   }
 
+  // Re-verifies the current password before changing it, so an unattended
+  // signed-in browser can't be used to take over the account.
+  async function changePassword(currentPassword, newPassword) {
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: session.user.email,
+      password: currentPassword,
+    });
+    if (verifyError) {
+      if (verifyError.code === 'invalid_credentials') {
+        throw Object.assign(new Error('Current password is incorrect'), { code: 'current_password_incorrect' });
+      }
+      throw verifyError;
+    }
+    await updatePassword(newPassword);
+  }
+
   const value = {
     session,
     user: session?.user ?? null,
@@ -61,6 +77,7 @@ export function AuthProvider({ children }) {
     signOut,
     sendPasswordReset,
     updatePassword,
+    changePassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -73,19 +90,10 @@ export function useAuth() {
   return ctx;
 }
 
-const AUTH_ERROR_MESSAGES = {
-  invalid_credentials: 'Onjuist e-mailadres of wachtwoord.',
-  email_not_confirmed: 'Bevestig eerst je e-mailadres via de link in je inbox.',
-  user_already_exists: 'Er bestaat al een account met dit e-mailadres.',
-  email_exists: 'Er bestaat al een account met dit e-mailadres.',
-  weak_password: 'Dit wachtwoord is te zwak. Kies een langer of sterker wachtwoord.',
-  same_password: 'Het nieuwe wachtwoord moet anders zijn dan je huidige wachtwoord.',
-  over_email_send_rate_limit: 'Te veel e-mails verstuurd. Probeer het over een paar minuten opnieuw.',
-  over_request_rate_limit: 'Te veel pogingen. Probeer het over een paar minuten opnieuw.',
-  session_not_found: 'Je sessie is verlopen. Vraag een nieuwe link aan.',
-};
-
+// Maps a Supabase auth error to a message in the current language.
 // eslint-disable-next-line react-refresh/only-export-components
-export function authErrorMessage(err) {
-  return AUTH_ERROR_MESSAGES[err?.code] ?? err?.message ?? 'Er ging iets mis. Probeer het opnieuw.';
+export function authErrorMessage(err, { t, has }) {
+  const key = `authError.${err?.code}`;
+  if (has(key)) return t(key);
+  return err?.message ?? t('authError.generic');
 }

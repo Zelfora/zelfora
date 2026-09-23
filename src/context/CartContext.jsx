@@ -1,4 +1,5 @@
 import { createContext, useContext, useState } from 'react';
+import { useTranslation } from './LanguageContext';
 
 const CartContext = createContext(null);
 
@@ -6,11 +7,12 @@ export function CartProvider({ children }) {
   const [restaurantId, setRestaurantId] = useState(null);
   const [restaurantName, setRestaurantName] = useState(null);
   const [items, setItems] = useState([]); // { id, name, price, quantity }
+  const { t } = useTranslation();
 
   function addItem(restaurant, menuItem) {
     if (restaurantId && restaurantId !== restaurant.id) {
       const confirmed = window.confirm(
-        `Je winkelwagen bevat al gerechten van ${restaurantName}. Wil je deze leegmaken en verder gaan met ${restaurant.name}?`
+        t('cart.switchRestaurant', { current: restaurantName, next: restaurant.name })
       );
       if (!confirmed) return;
       setItems([]);

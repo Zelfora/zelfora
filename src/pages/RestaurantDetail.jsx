@@ -4,9 +4,11 @@ import { ArrowLeft, Clock, Bike } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import StarRating from '../components/StarRating';
 import MenuItemCard from '../components/MenuItemCard';
+import { useTranslation } from '../context/LanguageContext';
 
 function RestaurantDetail() {
   const { id } = useParams();
+  const { t, formatPrice } = useTranslation();
   const [restaurant, setRestaurant] = useState(null);
   const [menu, setMenu] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,15 +28,15 @@ function RestaurantDetail() {
   }, [id]);
 
   if (loading) {
-    return <main className="px-4 py-16 text-center text-text-muted md:px-8">Laden...</main>;
+    return <main className="px-4 py-16 text-center text-text-muted md:px-8">{t('common.loading')}</main>;
   }
 
   if (!restaurant) {
     return (
       <main className="mx-auto max-w-6xl px-4 py-16 text-center md:px-8">
-        <p className="mb-4 text-lg text-text-muted">Restaurant niet gevonden.</p>
+        <p className="mb-4 text-lg text-text-muted">{t('restaurant.notFound')}</p>
         <Link to="/" className="font-semibold text-primary-300 hover:text-primary-400">
-          &larr; Terug naar home
+          &larr; {t('restaurant.backHome')}
         </Link>
       </main>
     );
@@ -52,7 +54,7 @@ function RestaurantDetail() {
           className="absolute left-4 top-4 flex items-center gap-2 rounded-pill border border-border bg-bg-elevated/80 px-3 py-2 text-sm font-medium text-text backdrop-blur-md transition-colors hover:border-primary-500/60 hover:text-primary-300 md:left-8 md:top-6"
         >
           <ArrowLeft size={16} />
-          Terug
+          {t('common.back')}
         </Link>
         <h1 className="absolute bottom-4 left-4 font-display text-3xl font-bold text-text md:bottom-6 md:left-8 md:text-4xl">
           {restaurant.name}
@@ -69,7 +71,7 @@ function RestaurantDetail() {
           </span>
           <span className="flex items-center gap-1">
             <Bike size={16} className="text-accent-400" />
-            €{Number(restaurant.delivery_fee).toFixed(2)} bezorging
+            {t('restaurant.deliveryFee', { fee: formatPrice(restaurant.delivery_fee) })}
           </span>
         </div>
 
@@ -89,7 +91,7 @@ function RestaurantDetail() {
           </div>
         )}
 
-        <h2 className="mb-4 font-display text-2xl font-semibold text-text">Menu</h2>
+        <h2 className="mb-4 font-display text-2xl font-semibold text-text">{t('restaurant.menu')}</h2>
 
         <div className="space-y-8">
           {categories.map((category) => (
