@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
 import RestaurantDetail from './pages/RestaurantDetail';
 import Login from './pages/Login';
+import ResetPassword from './pages/ResetPassword';
 import Cart from './pages/Cart';
 import Orders from './pages/Orders';
 import './index.css';
@@ -16,6 +17,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/restaurant/:id" element={<RestaurantDetail />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route
           path="/cart"
           element={
