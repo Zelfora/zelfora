@@ -1,6 +1,6 @@
 # Zelfora
 
-Zelfora is a restaurant ordering website. Visitors can browse restaurants and their menus. Signed-in users can fill a cart, place an order and see their past orders. Restaurant owners can register their restaurant and add dishes to its menu in the restaurant portal at `/partner`. The site is available in Dutch, English and German, with a light and a dark theme.
+Zelfora is a restaurant ordering website. Visitors can browse restaurants and their menus. Signed-in users can fill a cart, place an order and see their past orders. Restaurant owners can register their restaurant, change its photo and manage its menu in the restaurant portal at `/partner`. Wherever the site shows a photo, users can upload one or paste a link. The site is available in Dutch, English and German, with a light and a dark theme.
 
 ## Tech stack
 
@@ -37,10 +37,11 @@ You need Node.js 20.19 or newer and access to the Zelfora Supabase project.
 The website talks to Supabase directly from the browser. The anon key is public by design, so the data is protected by Row Level Security (RLS) policies in the database.
 
 - `supabase/schema.sql` is a reference copy of the database tables. It is not meant to be run.
-- `supabase/restaurant_owners.sql` lets restaurant owners register a restaurant and add menu items, and keeps new restaurants hidden until they are approved.
+- `supabase/restaurant_owners.sql` lets restaurant owners register a restaurant, manage its menu items and change its photo, and keeps new restaurants hidden until they are approved.
+- `supabase/images.sql` creates the `images` storage bucket for uploaded photos and adds profile photos.
 - `supabase/auth_hardening.sql` sets up the order policies and a trigger that checks every order and recalculates its prices on the server.
 
-Run both in the Supabase SQL Editor, `restaurant_owners.sql` first. Both are safe to run more than once.
+Run them in the Supabase SQL Editor in this order: `restaurant_owners.sql`, `auth_hardening.sql`, `images.sql`. All three are safe to run more than once, so after a change you can simply run the changed file again.
 
 ### Approving a restaurant
 
@@ -57,6 +58,7 @@ src/
   pages/        one component per route (home, restaurant, cart, orders, profile, login, partner)
   components/   shared UI such as the navbar, cards and switchers
   context/      app-wide state: auth, cart, language and theme
+  services/     image resizing, uploads and clean-up
   i18n/         translations for nl, en and de
 supabase/       database schema and SQL scripts
 ```

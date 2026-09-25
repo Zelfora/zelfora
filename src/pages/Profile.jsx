@@ -3,9 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { authErrorMessage, useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import { inputClass, primaryButtonClass } from '../components/formHelpers';
+import Avatar from '../components/Avatar';
+import SingleImageForm from '../components/SingleImageForm';
 
 function Profile() {
-  const { user, signOut, changePassword } = useAuth();
+  const { user, profile, signOut, changePassword, updateProfile } = useAuth();
   const i18n = useTranslation();
   const { t, formatDate } = i18n;
   const navigate = useNavigate();
@@ -47,9 +49,7 @@ function Profile() {
   return (
     <main className="mx-auto flex max-w-xl flex-col gap-6 px-4 py-10 md:px-8">
       <div className="flex items-center gap-4">
-        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-accent-500 font-display text-xl font-bold uppercase text-white shadow-glow">
-          {user.email?.[0] ?? '?'}
-        </span>
+        <Avatar src={profile?.avatar_url} name={user.email} className="h-14 w-14 text-xl shadow-glow" />
         <div className="min-w-0">
           <h1 className="font-display text-2xl font-semibold text-text">{t('profile.title')}</h1>
           <p className="truncate text-sm text-text-muted">{user.email}</p>
@@ -84,6 +84,17 @@ function Profile() {
             {t('nav.signOut')}
           </button>
         </div>
+      </section>
+
+      <section className="rounded-card border border-border bg-surface/70 p-6 backdrop-blur-md">
+        <h2 className="mb-4 font-display text-lg font-semibold text-text">{t('profile.photo')}</h2>
+        <SingleImageForm
+          kind="avatar"
+          label={t('profile.photo')}
+          current={profile?.avatar_url ?? null}
+          save={(url) => updateProfile({ avatar_url: url })}
+          renderPreview={(src) => <Avatar src={src} name={user.email} className="h-24 w-24 text-3xl" />}
+        />
       </section>
 
       <section className="rounded-card border border-border bg-surface/70 p-6 backdrop-blur-md">

@@ -2,7 +2,9 @@ import { useId, useRef, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useTranslation } from '../context/LanguageContext';
 import FormField from './FormField';
-import { inputClass, isValidImageUrl, parseAmount, primaryButtonClass, textareaClass } from './formHelpers';
+import ImageInput from './ImageInput';
+import { inputClass, parseAmount, primaryButtonClass, secondaryButtonClass, textareaClass } from './formHelpers';
+import { commitImage, imageErrorKey, isValidImageValue } from '../services/images';
 
 // Matches the menu_items_price_range constraint (> 0 and < 1000).
 const MIN_PRICE = 0.01;
@@ -10,11 +12,22 @@ const MAX_PRICE = 999.99;
 
 const EMPTY_FORM = { name: '', price: '', category: '', description: '', image: '' };
 
-// Adds a dish to the owner's restaurant. RLS only accepts items for a
-// restaurant the signed-in user owns.
-function NewMenuItemForm({ restaurantId, categories, onAdded }) {
-  const { t, formatPrice } = useTranslation();
-  const [form, setForm] = useState(EMPTY_FORM);
+// Adds a dish to the owner's restaurant, or edits one when item is given.
+// RLS only accepts changes to items of a restaurant the signed-in user owns.
+function MenuItemForm({ restaurantId, item = null, categories, onSaved, onCancel }) {
+  const { t, locale, formatPrice } = useTranslation();
+  const editing = item !== null;
+  const [form, setForm] = useState(() =>
+    editing
+      ? {
+          name: item.name,
+          price: new Intl.NumberFormat(locale, { minimumFractionDigits: 2, useGrouping: false }).format(item.price),
+          category: item.category ?? '',
+          description: item.description ?? '',
+          image: item.image ?? '',
+        }
+      : EMPTY_FORM
+  );
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -25,6 +38,10 @@ function NewMenuItemForm({ restaurantId, categories, onAdded }) {
     return (e) => setForm((current) => ({ ...current, [field]: e.target.value }));
   }
 
+  function setImage(image) {
+    setForm((current) => ({ ...current, image }));
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
@@ -32,7 +49,6 @@ function NewMenuItemForm({ restaurantId, categories, onAdded }) {
 
     const name = form.name.trim();
     const category = form.category.trim();
-    const image = form.image.trim();
     const price = parseAmount(form.price);
 
     if (!name || !category) {
@@ -47,37 +63,43 @@ function NewMenuItemForm({ restaurantId, categories, onAdded }) {
       setError(t('partner.error.priceRange', { min: formatPrice(MIN_PRICE), max: formatPrice(MAX_PRICE) }));
       return;
     }
-    if (!isValidImageUrl(image)) {
-      setError(t('partner.error.imageUrl'));
+    if (!isValidImageValue(form.image)) {
+      setError(t('imageError.invalid_url'));
       return;
     }
+
+    const fields = { name, price, category, description: form.description.trim() || null };
 
     setSubmitting(true);
-    const { data, error: insertError } = await supabase
-      .from('menu_items')
-      .insert({
-        restaurant_id: restaurantId,
-        name,
-        price,
-        category,
-        description: form.description.trim() || null,
-        image: image || null,
-      })
-      .select()
-      .single();
-    setSubmitting(false);
+    try {
+      const saved = await commitImage({
+        value: form.image,
+        previous: item?.image ?? null,
+        kind: 'menuItem',
+        save: async (image) => {
+          const query = editing
+            ? supabase.from('menu_items').update({ ...fields, image }).eq('id', item.id)
+            : supabase.from('menu_items').insert({ ...fields, image, restaurant_id: restaurantId });
+          // .single() also fails when RLS silently matched no row.
+          const { data, error: saveError } = await query.select().single();
+          if (saveError) throw saveError;
+          return data;
+        },
+      });
 
-    if (insertError) {
-      console.error(insertError);
-      setError(t('partner.error.saveFailed'));
-      return;
+      onSaved(saved);
+      if (!editing) {
+        // Keep the category so several dishes in a row can go into the same one.
+        setForm({ ...EMPTY_FORM, category });
+        setInfo(t('partner.menu.added', { name: saved.name }));
+        nameRef.current?.focus();
+      }
+    } catch (err) {
+      console.error(err);
+      setError(t(imageErrorKey(err) ?? 'partner.error.saveFailed'));
+    } finally {
+      setSubmitting(false);
     }
-
-    onAdded(data);
-    // Keep the category so several dishes in a row can go into the same one.
-    setForm({ ...EMPTY_FORM, category });
-    setInfo(t('partner.menu.added', { name: data.name }));
-    nameRef.current?.focus();
   }
 
   return (
@@ -138,21 +160,8 @@ function NewMenuItemForm({ restaurantId, categories, onAdded }) {
         />
       </FormField>
 
-      <FormField
-        label={t('partner.field.image')}
-        optional
-        hint={t('partner.field.imageHint')}
-        className="sm:col-span-2"
-      >
-        <input
-          name="image"
-          type="url"
-          maxLength={2000}
-          placeholder="https://"
-          value={form.image}
-          onChange={update('image')}
-          className={inputClass}
-        />
+      <FormField label={t('partner.field.image')} optional group className="sm:col-span-2">
+        <ImageInput kind="menuItem" value={form.image} onChange={setImage} />
       </FormField>
 
       {error && <p className="text-sm text-danger sm:col-span-2">{error}</p>}
@@ -162,11 +171,18 @@ function NewMenuItemForm({ restaurantId, categories, onAdded }) {
         </p>
       )}
 
-      <button type="submit" disabled={submitting} className={`mt-2 sm:col-span-2 ${primaryButtonClass}`}>
-        {submitting ? t('common.pleaseWait') : t('partner.menu.add')}
-      </button>
+      <div className="mt-2 flex flex-wrap gap-3 sm:col-span-2">
+        <button type="submit" disabled={submitting} className={`flex-1 ${primaryButtonClass}`}>
+          {submitting ? t('common.pleaseWait') : t(editing ? 'common.save' : 'partner.menu.add')}
+        </button>
+        {onCancel && (
+          <button type="button" disabled={submitting} onClick={onCancel} className={secondaryButtonClass}>
+            {t('common.cancel')}
+          </button>
+        )}
+      </div>
     </form>
   );
 }
 
-export default NewMenuItemForm;
+export default MenuItemForm;

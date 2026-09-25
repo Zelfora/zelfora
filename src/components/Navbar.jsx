@@ -5,9 +5,10 @@ import { useCart } from '../context/CartContext';
 import { useTranslation } from '../context/LanguageContext';
 import LanguageSwitcher from './LanguageSwitcher';
 import ThemeSwitcher from './ThemeSwitcher';
+import Avatar from './Avatar';
 
 function Navbar() {
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const { itemCount } = useCart();
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -64,12 +65,12 @@ function Navbar() {
                 aria-label={t('nav.profile')}
                 title={t('nav.profile')}
                 className={({ isActive }) =>
-                  `flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-accent-500 font-display text-sm font-bold uppercase text-white transition-transform hover:scale-105 ${
+                  `flex rounded-full transition-transform hover:scale-105 ${
                     isActive ? 'shadow-glow-lg ring-2 ring-primary-300' : 'shadow-glow'
                   }`
                 }
               >
-                {user.email?.[0] ?? '?'}
+                <Avatar src={profile?.avatar_url} name={user.email} className="h-9 w-9 text-sm" />
               </NavLink>
             </div>
           ) : (

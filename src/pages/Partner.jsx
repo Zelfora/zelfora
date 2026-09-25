@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Store } from 'lucide-react';
+import { Pencil, Store, Trash2 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import FoodImage from '../components/FoodImage';
-import NewMenuItemForm from '../components/NewMenuItemForm';
+import MenuItemForm from '../components/MenuItemForm';
 import RestaurantSignupForm from '../components/RestaurantSignupForm';
+import SingleImageForm from '../components/SingleImageForm';
 import { primaryButtonClass } from '../components/formHelpers';
+import { deleteStoredImage } from '../services/images';
 
 const cardClass = 'rounded-card border border-border bg-surface/70 p-6 backdrop-blur-md';
 
-// Restaurant owner portal: register a restaurant, then add dishes to its menu.
+// Restaurant owner portal: register a restaurant, then manage its photo and menu.
 // Not wrapped in ProtectedRoute, so signed-out visitors first see what it's about.
 function Partner() {
   const { user, loading } = useAuth();
@@ -94,11 +96,11 @@ function PartnerDashboard({ userId }) {
       </main>
     );
   }
-  return <MenuManager restaurant={restaurant} />;
+  return <MenuManager restaurant={restaurant} onRestaurantChange={setRestaurant} />;
 }
 
-function MenuManager({ restaurant }) {
-  const { t, formatPrice } = useTranslation();
+function MenuManager({ restaurant, onRestaurantChange }) {
+  const { t } = useTranslation();
   const [menu, setMenu] = useState([]);
   const [status, setStatus] = useState('loading'); // 'loading' | 'ready' | 'error'
 
@@ -119,6 +121,26 @@ function MenuManager({ restaurant }) {
     }
     load();
   }, [restaurant.id]);
+
+  // Owners may only change the image column (see the grant in restaurant_owners.sql).
+  async function saveRestaurantImage(image) {
+    const { data, error } = await supabase
+      .from('restaurants')
+      .update({ image })
+      .eq('id', restaurant.id)
+      .select()
+      .single();
+    if (error) throw error;
+    onRestaurantChange(data);
+  }
+
+  function replaceItem(saved) {
+    setMenu((current) => current.map((item) => (item.id === saved.id ? saved : item)));
+  }
+
+  function removeItem(id) {
+    setMenu((current) => current.filter((item) => item.id !== id));
+  }
 
   // Items added by an admin may have no category; they're grouped under "Other".
   const groups = [...new Set(menu.map((item) => item.category ?? ''))];
@@ -149,11 +171,22 @@ function MenuManager({ restaurant }) {
       )}
 
       <section className={cardClass}>
+        <h2 className="mb-1 font-display text-lg font-semibold text-text">{t('partner.photo.title')}</h2>
+        <p className="mb-4 text-sm text-text-muted">{t('partner.photo.intro')}</p>
+        <SingleImageForm
+          kind="restaurantCover"
+          label={t('partner.photo.title')}
+          current={restaurant.image}
+          save={saveRestaurantImage}
+        />
+      </section>
+
+      <section className={cardClass}>
         <h2 className="mb-4 font-display text-lg font-semibold text-text">{t('partner.menu.addTitle')}</h2>
-        <NewMenuItemForm
+        <MenuItemForm
           restaurantId={restaurant.id}
           categories={categories}
-          onAdded={(item) => setMenu((current) => [...current, item])}
+          onSaved={(item) => setMenu((current) => [...current, item])}
         />
       </section>
 
@@ -178,19 +211,13 @@ function MenuManager({ restaurant }) {
                 {menu
                   .filter((item) => (item.category ?? '') === group)
                   .map((item) => (
-                    <li key={item.id} className="flex items-center gap-3 py-3">
-                      <FoodImage
-                        src={item.image}
-                        alt={item.name}
-                        iconSize={18}
-                        className="h-12 w-12 flex-shrink-0 rounded-[calc(var(--radius-card)-0.5rem)] object-cover"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-text">{item.name}</p>
-                        {item.description && <p className="truncate text-sm text-text-muted">{item.description}</p>}
-                      </div>
-                      <span className="flex-shrink-0 font-semibold text-primary-300">{formatPrice(item.price)}</span>
-                    </li>
+                    <MenuItemRow
+                      key={item.id}
+                      item={item}
+                      categories={categories}
+                      onUpdated={replaceItem}
+                      onDeleted={removeItem}
+                    />
                   ))}
               </ul>
             </div>
@@ -198,6 +225,87 @@ function MenuManager({ restaurant }) {
         </div>
       </section>
     </main>
+  );
+}
+
+// One dish in the owner's menu, editable and deletable right there in the list.
+function MenuItemRow({ item, categories, onUpdated, onDeleted }) {
+  const { t, formatPrice } = useTranslation();
+  const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleDelete() {
+    if (!window.confirm(t('partner.menu.confirmDelete', { name: item.name }))) return;
+    setError('');
+    setDeleting(true);
+    // select() so that a delete RLS silently skipped shows up as zero rows.
+    const { data, error: deleteError } = await supabase.from('menu_items').delete().eq('id', item.id).select('id');
+    setDeleting(false);
+    if (deleteError || data.length === 0) {
+      console.error(deleteError ?? 'Menu item was not deleted');
+      setError(t('partner.menu.deleteFailed'));
+      return;
+    }
+    deleteStoredImage(item.image);
+    onDeleted(item.id);
+  }
+
+  if (editing) {
+    return (
+      <li className="py-4">
+        <div className="rounded-card border border-primary-500/40 bg-bg/40 p-4">
+          <MenuItemForm
+            item={item}
+            categories={categories}
+            onSaved={(saved) => {
+              onUpdated(saved);
+              setEditing(false);
+            }}
+            onCancel={() => setEditing(false)}
+          />
+        </div>
+      </li>
+    );
+  }
+
+  return (
+    <li className="flex items-center gap-3 py-3">
+      <FoodImage
+        src={item.image}
+        alt={item.name}
+        iconSize={18}
+        className="h-14 w-14 flex-shrink-0 rounded-[calc(var(--radius-card)-0.5rem)] object-cover"
+      />
+      <div className="min-w-0 flex-1">
+        <p className="font-medium text-text">{item.name}</p>
+        {item.description && <p className="truncate text-sm text-text-muted">{item.description}</p>}
+        <p className="text-sm font-semibold text-primary-300">{formatPrice(item.price)}</p>
+        {error && <p className="text-sm text-danger">{error}</p>}
+      </div>
+      <div className="flex flex-shrink-0 items-center gap-1">
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          disabled={deleting}
+          aria-label={t('partner.menu.edit', { name: item.name })}
+          title={t('partner.menu.edit', { name: item.name })}
+          className="flex h-9 w-9 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-hover hover:text-primary-300"
+        >
+          <Pencil size={16} />
+        </button>
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={deleting}
+          aria-label={t('partner.menu.delete', { name: item.name })}
+          title={t('partner.menu.delete', { name: item.name })}
+          className="flex h-9 w-9 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-hover hover:text-danger disabled:opacity-50"
+        >
+          <Trash2 size={16} />
+        </button>
+      </div>
+    </li>
   );
 }
 

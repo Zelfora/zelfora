@@ -1,13 +1,16 @@
 -- Zelfora: database schema snapshot (public tables only)
 -- Source: Supabase Dashboard -> "Copy database schema as SQL", 2026-09-25.
 -- Reference only; do not run. Update this file whenever the schema changes.
--- restaurants.owner_id/published and the CHECK constraints were added by hand
--- from restaurant_owners.sql; re-export after running it to confirm.
+-- restaurants.owner_id/published, profiles.avatar_url and the CHECK
+-- constraints were added by hand from restaurant_owners.sql and images.sql;
+-- re-export after running them to confirm.
 --
 -- Not included in this export:
 --   - RLS policies and the order-validation trigger: see auth_hardening.sql
---   - Owner policies, the prepare_new_restaurant trigger and the unique index
---     restaurants_one_per_owner: see restaurant_owners.sql
+--   - Owner policies, the prepare_new_restaurant trigger, the column grant on
+--     restaurants and the unique index restaurants_one_per_owner: see
+--     restaurant_owners.sql
+--   - The "images" Storage bucket and its policies: see images.sql
 --   - profiles RLS, set up in the dashboard: RLS enabled, with policies
 --     "Users can view their own profile" (SELECT) and
 --     "Users can update their own profile" (UPDATE)
@@ -22,8 +25,10 @@ CREATE TABLE public.profiles (
   id uuid NOT NULL,
   email text NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
+  avatar_url text,
   CONSTRAINT profiles_pkey PRIMARY KEY (id),
-  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
+  CONSTRAINT profiles_avatar_url_valid CHECK (avatar_url ~* '^https://'::text AND char_length(avatar_url) <= 2000)
 );
 CREATE TABLE public.restaurants (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

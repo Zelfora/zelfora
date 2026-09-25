@@ -1,5 +1,6 @@
 -- Zelfora: restaurant owners
--- Lets a signed-in user register one restaurant and add menu items to it.
+-- Lets a signed-in user register one restaurant, manage its menu items and
+-- change its photo.
 -- New restaurants stay hidden from customers until an admin approves them by
 -- setting published = true in the Table Editor.
 --
@@ -51,8 +52,8 @@ alter table public.restaurants add constraint restaurants_delivery_fee_range che
   delivery_fee >= 0 and delivery_fee < 100 and delivery_fee = round(delivery_fee, 2)
 ) not valid;
 
--- Images are plain links (no uploads yet); only allow https so pages never
--- load mixed content.
+-- Image columns hold a URL: a pasted link or an upload in the images bucket
+-- (see images.sql). Only allow https so pages never load mixed content.
 alter table public.restaurants drop constraint if exists restaurants_image_https;
 alter table public.restaurants add constraint restaurants_image_https check (
   image ~* '^https://'
@@ -147,6 +148,46 @@ create policy "Owners add menu items"
       and r.owner_id = (select auth.uid())
   ));
 
--- No update/delete policies on restaurants or menu_items, so those are denied.
--- Editing restaurant details later needs column-level protection so owners
--- can't set published themselves.
+-- Owners manage their own menu from the portal: edit and delete items.
+grant update, delete on public.menu_items to authenticated;
+
+drop policy if exists "Owners update menu items" on public.menu_items;
+create policy "Owners update menu items"
+  on public.menu_items for update
+  to authenticated
+  using (exists (
+    select 1 from public.restaurants r
+    where r.id = menu_items.restaurant_id
+      and r.owner_id = (select auth.uid())
+  ))
+  with check (exists (
+    select 1 from public.restaurants r
+    where r.id = menu_items.restaurant_id
+      and r.owner_id = (select auth.uid())
+  ));
+
+drop policy if exists "Owners delete menu items" on public.menu_items;
+create policy "Owners delete menu items"
+  on public.menu_items for delete
+  to authenticated
+  using (exists (
+    select 1 from public.restaurants r
+    where r.id = menu_items.restaurant_id
+      and r.owner_id = (select auth.uid())
+  ));
+
+-- Owners can change their restaurant, but only the columns granted here, so
+-- they can't publish it, rate it or hand it to someone else. To let owners
+-- edit more fields, add those columns to the grant. (Revoking the table-wide
+-- privilege first also clears earlier column grants, so this is re-runnable.)
+revoke update on public.restaurants from authenticated;
+grant update (image) on public.restaurants to authenticated;
+
+drop policy if exists "Owners update their restaurant" on public.restaurants;
+create policy "Owners update their restaurant"
+  on public.restaurants for update
+  to authenticated
+  using (owner_id = (select auth.uid()))
+  with check (owner_id = (select auth.uid()));
+
+-- No delete policy on restaurants, so owners can't delete them.

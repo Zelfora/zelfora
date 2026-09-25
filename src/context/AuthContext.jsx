@@ -20,6 +20,36 @@ export function AuthProvider({ children }) {
     return () => listener.subscription.unsubscribe();
   }, []);
 
+  // The signed-in user's profiles row (avatar_url, ...). Tagged with the user
+  // id it belongs to, so a previous user's profile never shows.
+  const userId = session?.user?.id ?? null;
+  const [loadedProfile, setLoadedProfile] = useState({ userId: null, data: null });
+  const profile = userId && loadedProfile.userId === userId ? loadedProfile.data : null;
+
+  useEffect(() => {
+    if (!userId) return;
+    let ignore = false;
+    supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) console.error(error);
+        if (!ignore) setLoadedProfile({ userId, data });
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [userId]);
+
+  async function updateProfile(fields) {
+    const { data, error } = await supabase.from('profiles').update(fields).eq('id', userId).select().single();
+    if (error) throw error;
+    setLoadedProfile({ userId, data });
+    return data;
+  }
+
   // Returns the new session when email confirmation is disabled, otherwise null.
   // The confirmation link brings the user back to redirectPath. Paths other than
   // "/" must be allowed under Auth > URL Configuration > Redirect URLs, otherwise
@@ -75,7 +105,9 @@ export function AuthProvider({ children }) {
   const value = {
     session,
     user: session?.user ?? null,
+    profile,
     loading,
+    updateProfile,
     signUp,
     signIn,
     signOut,
