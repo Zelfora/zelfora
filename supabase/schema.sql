@@ -1,9 +1,13 @@
 -- Zelfora: database schema snapshot (public tables only)
 -- Source: Supabase Dashboard -> "Copy database schema as SQL", 2026-09-25.
 -- Reference only; do not run. Update this file whenever the schema changes.
+-- restaurants.owner_id/published and the CHECK constraints were added by hand
+-- from restaurant_owners.sql; re-export after running it to confirm.
 --
 -- Not included in this export:
 --   - RLS policies and the order-validation trigger: see auth_hardening.sql
+--   - Owner policies, the prepare_new_restaurant trigger and the unique index
+--     restaurants_one_per_owner: see restaurant_owners.sql
 --   - profiles RLS, set up in the dashboard: RLS enabled, with policies
 --     "Users can view their own profile" (SELECT) and
 --     "Users can update their own profile" (UPDATE)
@@ -33,7 +37,13 @@ CREATE TABLE public.restaurants (
   tags ARRAY,
   address text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT restaurants_pkey PRIMARY KEY (id)
+  owner_id uuid,
+  published boolean NOT NULL DEFAULT false,
+  CONSTRAINT restaurants_pkey PRIMARY KEY (id),
+  CONSTRAINT restaurants_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES public.profiles(id),
+  CONSTRAINT restaurants_text_lengths CHECK (char_length(btrim(name)) >= 1 AND char_length(btrim(name)) <= 100 AND char_length(cuisine) <= 50 AND char_length(address) <= 200 AND char_length(description) <= 1000 AND char_length(delivery_time) <= 30 AND char_length(image) <= 2000),
+  CONSTRAINT restaurants_delivery_fee_range CHECK (delivery_fee >= 0::numeric AND delivery_fee < 100::numeric AND delivery_fee = round(delivery_fee, 2)),
+  CONSTRAINT restaurants_image_https CHECK (image ~* '^https://'::text)
 );
 CREATE TABLE public.menu_items (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -45,7 +55,10 @@ CREATE TABLE public.menu_items (
   image text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT menu_items_pkey PRIMARY KEY (id),
-  CONSTRAINT menu_items_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id)
+  CONSTRAINT menu_items_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id),
+  CONSTRAINT menu_items_text_lengths CHECK (char_length(btrim(name)) >= 1 AND char_length(btrim(name)) <= 100 AND char_length(category) <= 50 AND char_length(description) <= 500 AND char_length(image) <= 2000),
+  CONSTRAINT menu_items_price_range CHECK (price > 0::numeric AND price < 1000::numeric AND price = round(price, 2)),
+  CONSTRAINT menu_items_image_https CHECK (image ~* '^https://'::text)
 );
 CREATE TABLE public.orders (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

@@ -28,6 +28,10 @@ function Navbar() {
         </Link>
 
         <div className="flex items-center gap-2 sm:gap-4">
+          {/* Smaller screens reach the portal through the footer and the profile page. */}
+          <Link to="/partner" className="hidden text-sm text-text-muted hover:text-primary-300 lg:inline">
+            {t('nav.partner')}
+          </Link>
           <ThemeSwitcher />
           <LanguageSwitcher />
 

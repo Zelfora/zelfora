@@ -25,15 +25,29 @@ The app needs a `.env` file with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY
 The browser talks to Supabase directly with the public anon key, so Row Level Security and database triggers are the only real protection. Anything added to the frontend that reads or writes data needs a matching RLS policy.
 
 - `supabase/schema.sql` is a reference snapshot of the public tables, exported from the dashboard. Keep it current when the schema changes.
-- `supabase/auth_hardening.sql` holds the RLS policies for `restaurants`, `menu_items` and `orders`, plus the order-validation trigger. The `profiles` policies (users can view and update only their own row) were created in the dashboard; they are listed in the header of `schema.sql`. It is run by hand in the Supabase SQL Editor and is written to be safe to re-run (`drop ... if exists` / `create or replace`). New database changes follow the same pattern.
+- `supabase/restaurant_owners.sql` adds restaurant ownership: the `owner_id` and `published` columns, CHECK constraints, and the read and insert policies for `restaurants` and `menu_items`.
+- `supabase/auth_hardening.sql` enables RLS and holds the `orders` policies plus the order-validation trigger. Run `restaurant_owners.sql` first. Don't re-add a `using (true)` read policy for restaurants or menu items: policies are OR'ed, so it would expose unpublished restaurants.
+- The `profiles` policies (users can view and update only their own row) were created in the dashboard; they are listed in the header of `schema.sql`.
+- The SQL files are run by hand in the Supabase SQL Editor and are written to be safe to re-run (`drop ... if exists` / `create or replace`). New database changes follow the same pattern.
 - There are no Supabase CLI migrations. The live database can contain objects that aren't in the repo, for example whatever creates a `profiles` row on signup (`orders.user_id` references `profiles.id`).
 
-**Orders:** `Cart.jsx` inserts `items` as `[{ menu_item_id, name, price, quantity }]` along with a `total`. The `validate_order` trigger (BEFORE INSERT) then overwrites `user_id` with `auth.uid()`, looks up every item's name and price in `menu_items` (the item must belong to the order's restaurant), and recomputes `total`. Never trust client-sent prices. Users can only select and insert their own orders; there are no update or delete policies.
+**Orders:** `Cart.jsx` inserts `items` as `[{ menu_item_id, name, price, quantity }]` along with a `total`. The `validate_order` trigger (BEFORE INSERT) then overwrites `user_id` with `auth.uid()`, looks up every item's name and price in `menu_items` (the item must belong to the order's restaurant), and recomputes `total`. It also rejects orders for unpublished restaurants. Never trust client-sent prices. Users can only select and insert their own orders; there are no update or delete policies.
+
+### Restaurant owners (`/partner`)
+Any signed-in user can register one restaurant (enforced by a unique index on `owner_id`) and add menu items to it. There is no role column: someone is an owner because their id is in `restaurants.owner_id`. Keep it that way, because users can update their own `profiles` row.
+
+- A BEFORE INSERT trigger (`prepare_new_restaurant`) forces `owner_id = auth.uid()`, `published = false` and `rating = null` for inserts from the app. The admin approves a restaurant by setting `published = true` in the Table Editor. There is no admin UI.
+- Customers only see published restaurants and their menu items. Owners also see their own, and `RestaurantDetail` then shows a preview banner and hides the add-to-cart buttons.
+- Owners can only insert. There are no update or delete policies yet. Editing restaurant details later needs column-level protection so owners can't set `published`.
+- Owner-entered data can be incomplete: `FoodImage` falls back to a placeholder for missing or broken images, and `StarRating` shows "New" when `rating` is null.
+- Images are https links only (a CHECK constraint); there are no uploads.
+- `src/pages/Partner.jsx` is not wrapped in `ProtectedRoute`: signed-out visitors see an intro that links to `/login` with `state.from`.
+- Shared form classes and euro amount parsing live in `components/formHelpers.js`.
 
 ### Providers
 `main.jsx` nests the providers as `ThemeProvider > LanguageProvider > AuthProvider > CartProvider`. Each one exposes a hook (`useTheme`, `useTranslation`, `useAuth`, `useCart`) that throws when used outside its provider. The order matters: `CartProvider` calls `useTranslation`.
 
-- **Auth** (`context/AuthContext.jsx`) wraps Supabase auth. `ProtectedRoute` sends signed-out users to `/login` with `state.from`, and `Login` returns them there after signing in. `changePassword` first re-verifies the current password. Auth errors are shown through `authErrorMessage`, which looks up the translation key `authError.<supabase error code>` and falls back to Supabase's message.
+- **Auth** (`context/AuthContext.jsx`) wraps Supabase auth. `ProtectedRoute` sends signed-out users to `/login` with `state.from`, and `Login` returns them there after signing in. After a new sign-up, the email confirmation link also leads there, provided the URL is allowed under Auth > URL Configuration > Redirect URLs. `changePassword` first re-verifies the current password. Auth errors are shown through `authErrorMessage`, which looks up the translation key `authError.<supabase error code>` and falls back to Supabase's message.
 - **Cart** (`context/CartContext.jsx`) lives in memory only, so it is lost on reload. It holds items from a single restaurant; adding from another restaurant asks for confirmation and then clears the cart.
 
 ### Translations

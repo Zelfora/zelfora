@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Clock, Bike } from 'lucide-react';
 import StarRating from './StarRating';
+import FoodImage from './FoodImage';
 import { useTranslation } from '../context/LanguageContext';
 
 function RestaurantCard({ restaurant }) {
@@ -11,7 +12,7 @@ function RestaurantCard({ restaurant }) {
       to={`/restaurant/${restaurant.id}`}
       className="group block overflow-hidden rounded-card border border-border bg-surface/70 backdrop-blur-md transition-all duration-200 hover:-translate-y-1 hover:border-primary-500/60 hover:shadow-glow"
     >
-      <img
+      <FoodImage
         src={restaurant.image}
         alt={restaurant.name}
         className="h-44 w-full object-cover"

@@ -21,11 +21,15 @@ export function AuthProvider({ children }) {
   }, []);
 
   // Returns the new session when email confirmation is disabled, otherwise null.
-  async function signUp(email, password) {
+  // The confirmation link brings the user back to redirectPath. Paths other than
+  // "/" must be allowed under Auth > URL Configuration > Redirect URLs, otherwise
+  // Supabase falls back to the Site URL.
+  async function signUp(email, password, redirectPath = '/') {
+    const path = redirectPath === '/' ? '' : redirectPath;
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: `${window.location.origin}${path}` },
     });
     if (error) throw error;
     return data.session;

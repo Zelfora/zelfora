@@ -4,6 +4,7 @@ import { ArrowLeft, Clock, Bike } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import StarRating from '../components/StarRating';
 import MenuItemCard from '../components/MenuItemCard';
+import FoodImage from '../components/FoodImage';
 import { useTranslation } from '../context/LanguageContext';
 
 function RestaurantDetail() {
@@ -43,11 +44,13 @@ function RestaurantDetail() {
   }
 
   const categories = [...new Set(menu.map((item) => item.category))];
+  // Only the owner can load an unpublished restaurant; customers get "not found".
+  const preview = restaurant.published === false;
 
   return (
     <main>
       <div className="relative h-56 w-full overflow-hidden md:h-72">
-        <img src={restaurant.image} alt={restaurant.name} className="h-full w-full object-cover" />
+        <FoodImage src={restaurant.image} alt={restaurant.name} iconSize={48} className="h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/60 to-transparent" />
         <Link
           to="/"
@@ -91,6 +94,15 @@ function RestaurantDetail() {
           </div>
         )}
 
+        {preview && (
+          <div className="mb-8 flex flex-col gap-2 rounded-card border border-warn-400/50 bg-warn-400/10 p-4 text-sm text-text sm:flex-row sm:items-center sm:justify-between">
+            <p>{t('restaurant.previewNotice')}</p>
+            <Link to="/partner" className="flex-shrink-0 font-semibold text-primary-300 hover:text-primary-400">
+              {t('restaurant.previewManage')} &rarr;
+            </Link>
+          </div>
+        )}
+
         <h2 className="mb-4 font-display text-2xl font-semibold text-text">{t('restaurant.menu')}</h2>
 
         <div className="space-y-8">
@@ -101,7 +113,7 @@ function RestaurantDetail() {
                 {menu
                   .filter((item) => item.category === category)
                   .map((item) => (
-                    <MenuItemCard key={item.id} item={item} restaurant={restaurant} />
+                    <MenuItemCard key={item.id} item={item} restaurant={restaurant} orderable={!preview} />
                   ))}
               </div>
             </div>

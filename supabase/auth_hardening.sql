@@ -1,5 +1,6 @@
 -- Zelfora: auth hardening
 -- Run once in Supabase Dashboard -> SQL Editor. Safe to re-run.
+-- Run restaurant_owners.sql first: validate_order reads restaurants.published.
 
 -- ---------------------------------------------------------------------------
 -- 1. Row Level Security
@@ -10,18 +11,10 @@ alter table public.restaurants enable row level security;
 alter table public.menu_items  enable row level security;
 alter table public.orders      enable row level security;
 
--- Restaurants and menus are public, read-only.
-drop policy if exists "Restaurants are public" on public.restaurants;
-create policy "Restaurants are public"
-  on public.restaurants for select
-  to anon, authenticated
-  using (true);
-
-drop policy if exists "Menu items are public" on public.menu_items;
-create policy "Menu items are public"
-  on public.menu_items for select
-  to anon, authenticated
-  using (true);
+-- Who can read and add restaurants and menu items is defined in
+-- restaurant_owners.sql. Don't bring back the old "... are public" policies
+-- with using (true) here: policies are OR'ed together, so that would expose
+-- unpublished restaurants.
 
 -- Orders: signed-in users can only see and create their own.
 -- No update/delete policies, so those are denied.
@@ -40,7 +33,8 @@ create policy "Users create own orders"
 -- ---------------------------------------------------------------------------
 -- 2. Server-side order validation
 --    Don't trust the price/total sent by the browser: recompute it from
---    menu_items and reject items that don't belong to the restaurant.
+--    menu_items and reject items that don't belong to the restaurant, and
+--    orders for a restaurant that isn't published.
 -- ---------------------------------------------------------------------------
 
 create or replace function public.validate_order()
@@ -60,6 +54,15 @@ begin
 
   if new.items is null or jsonb_array_length(new.items::jsonb) = 0 then
     raise exception 'Order must contain at least one item';
+  end if;
+
+  -- security definer bypasses RLS, so check this here as well.
+  if not exists (
+    select 1 from restaurants
+    where id = new.restaurant_id
+      and published
+  ) then
+    raise exception 'Restaurant is not accepting orders';
   end if;
 
   for item in select * from jsonb_array_elements(new.items::jsonb) loop

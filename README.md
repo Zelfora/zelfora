@@ -1,6 +1,6 @@
 # Zelfora
 
-Zelfora is a restaurant ordering website. Visitors can browse restaurants and their menus. Signed-in users can fill a cart, place an order and see their past orders. The site is available in Dutch, English and German, with a light and a dark theme.
+Zelfora is a restaurant ordering website. Visitors can browse restaurants and their menus. Signed-in users can fill a cart, place an order and see their past orders. Restaurant owners can register their restaurant and add dishes to its menu in the restaurant portal at `/partner`. The site is available in Dutch, English and German, with a light and a dark theme.
 
 ## Tech stack
 
@@ -37,13 +37,24 @@ You need Node.js 20.19 or newer and access to the Zelfora Supabase project.
 The website talks to Supabase directly from the browser. The anon key is public by design, so the data is protected by Row Level Security (RLS) policies in the database.
 
 - `supabase/schema.sql` is a reference copy of the database tables. It is not meant to be run.
-- `supabase/auth_hardening.sql` sets up the RLS policies and a trigger that checks every order and recalculates its prices on the server. Run it in the Supabase SQL Editor; it is safe to run more than once.
+- `supabase/restaurant_owners.sql` lets restaurant owners register a restaurant and add menu items, and keeps new restaurants hidden until they are approved.
+- `supabase/auth_hardening.sql` sets up the order policies and a trigger that checks every order and recalculates its prices on the server.
+
+Run both in the Supabase SQL Editor, `restaurant_owners.sql` first. Both are safe to run more than once.
+
+### Approving a restaurant
+
+A newly registered restaurant is only visible to its owner. To put it online, open the `restaurants` table in the Supabase Table Editor and set `published` to `true`. To give an existing restaurant to an owner, set its `owner_id` to the owner's user id.
+
+### Email confirmation links
+
+After signing up, the confirmation email sends new users back to the page they came from, such as the restaurant portal. Supabase only allows this for known addresses, so add your site with a wildcard under Authentication > URL Configuration > Redirect URLs (for example `https://zelfora.nl/**` and `http://localhost:5173/**`). Otherwise, users land on the Site URL instead.
 
 ## Project structure
 
 ```
 src/
-  pages/        one component per route (home, restaurant, cart, orders, profile, login)
+  pages/        one component per route (home, restaurant, cart, orders, profile, login, partner)
   components/   shared UI such as the navbar, cards and switchers
   context/      app-wide state: auth, cart, language and theme
   i18n/         translations for nl, en and de

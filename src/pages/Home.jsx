@@ -12,7 +12,11 @@ function Home() {
 
   useEffect(() => {
     async function load() {
-      const { data, error } = await supabase.from('restaurants').select('*').order('name');
+      const { data, error } = await supabase
+        .from('restaurants')
+        .select('*')
+        .eq('published', true)
+        .order('name');
       if (!error) setRestaurants(data);
       setLoading(false);
     }
@@ -21,7 +25,7 @@ function Home() {
 
   const filteredRestaurants = restaurants.filter((res) =>
     res.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    res.cuisine.toLowerCase().includes(searchQuery.toLowerCase())
+    (res.cuisine ?? '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (

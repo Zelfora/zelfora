@@ -2,9 +2,7 @@ import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { authErrorMessage, useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
-
-const inputClass =
-  'rounded-pill border border-border bg-bg px-4 py-2.5 text-text placeholder:text-text-faint outline-none focus:border-primary-500 focus:shadow-glow';
+import { inputClass, primaryButtonClass } from '../components/formHelpers';
 
 // Standard login markup so iCloud Keychain and other password managers work.
 // Note: iOS always treats the email field here as the Keychain username field
@@ -36,7 +34,7 @@ function Login() {
     const address = email.trim();
     try {
       if (mode === 'signup') {
-        const session = await signUp(address, password);
+        const session = await signUp(address, password, redirectTo);
         if (session) {
           navigate(redirectTo, { replace: true });
         } else {
@@ -119,7 +117,7 @@ function Login() {
           <button
             type="submit"
             disabled={submitting}
-            className="mt-2 rounded-pill bg-gradient-to-r from-primary-500 to-accent-500 px-5 py-2.5 font-semibold text-white shadow-glow transition-transform hover:scale-[1.02] disabled:opacity-60"
+            className={`mt-2 ${primaryButtonClass}`}
           >
             {submitting ? t('common.pleaseWait') : t(`login.submit.${mode}`)}
           </button>
