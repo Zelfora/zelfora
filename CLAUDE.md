@@ -96,4 +96,9 @@ An inline script in `index.html` applies the saved or system theme before React 
 
 ## Settled decisions
 
+When we deliberately decide against an obvious fix, or an approach was tried and failed, record it here with the reason so it isn't proposed again. Keep each entry short.
+
+- **Supabase advisor warnings we accept:**
+  - *SECURITY DEFINER functions executable by anon/authenticated* (`handle_new_user`, `validate_order`): both are trigger functions, so calling them through `/rest/v1/rpc` only raises an error. Revoking EXECUTE was left out because it touches signup and ordering and can't be tested without writing production data.
+  - *Unindexed foreign keys* and *`auth.uid()` re-evaluated per row* in the `profiles` policies: irrelevant at the current table sizes. Revisit when tables grow.
 - **iOS login email field:** Safari does not show Text Replacement shortcuts or email suggestions in the login email field. Every markup workaround was tested on a real iPhone and failed, including a two-step flow, attribute changes and moving the field out of the form. `Login.jsx` deliberately uses standard markup (one `<form>`, `type="email"`, `autocomplete` set to `username`/`current-password`/`new-password`). Don't retry this. Point to iCloud Keychain autofill instead.
