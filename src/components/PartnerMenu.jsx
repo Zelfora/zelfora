@@ -239,7 +239,7 @@ function MenuItemRow({ item, handle, categories, menu, highlighted = false, onUp
 
   if (editing) {
     return (
-      <div className="rounded-card border border-primary-500/40 bg-bg/40 p-4">
+      <div className="rounded-card border border-primary-500/60 bg-primary-500/8 p-4">
         <MenuItemForm
           item={item}
           categories={categories}

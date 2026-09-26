@@ -16,10 +16,13 @@ import FoodImage from './FoodImage';
 
 // dnd-kit handles the pointer, touch and keyboard input, the floating copy
 // under the pointer and scrolling near the screen edges. Where the dragged
-// dish or category lands is worked out here, from the middles of the rows
+// dish or category lands is worked out here, from how far it covers the rows
 // and headers it passes, and the list is reordered live so the empty spot
 // always shows where it will be dropped.
 
+// How much of a neighbouring row the dragged one has to cover before that
+// row makes way.
+const SWAP_AT = 2 / 3;
 const SLIDE_MS = 200; // rows and headers sliding to a new place
 const DROP_MS = 220; // the floating copy settling into its place
 const EASING = 'cubic-bezier(0.2, 0, 0, 1)';
@@ -89,6 +92,19 @@ function layoutTop(element, list) {
 
 function viewportTop(element, list) {
   return list.getBoundingClientRect().top + layoutTop(element, list);
+}
+
+// Whether the dragged row, at rect on screen, belongs after element, a row or
+// header in the list. spot is the top of the dragged row's empty spot. It
+// does once it covers SWAP_AT of the element: from above for an element below
+// the spot, from below for one above it. Between rows of different heights,
+// how far past the middle it has to go is measured on the smaller one, so a
+// tall row, such as a dish being edited, needn't be covered as far.
+function isPast(element, rect, spot, list) {
+  const top = viewportTop(element, list);
+  const middle = top + element.offsetHeight / 2;
+  const margin = (SWAP_AT - 0.5) * Math.min(element.offsetHeight, rect.height);
+  return top > spot ? rect.bottom > middle + margin : rect.top >= middle - margin;
 }
 
 // Every row and header in the list by its id (data-slide).
@@ -221,32 +237,37 @@ function SortableMenu({ menu, onReorder, renderItem }) {
     return sections.filter((section) => section.group !== '' || section.group === drag.group);
   }
 
-  // The place under the middle of the dragged dish: the category whose header
-  // middle it has passed, then after every dish whose middle it has passed.
-  function itemPlaceAt(y) {
+  // The place for the dragged dish at rect: the category whose header middle
+  // its middle has passed, then after every dish it has passed (isPast). The
+  // category goes by the middles: when the last dish leaves a category, the
+  // "no dishes" note takes its place, so the next header moves up by less
+  // than the dish's height, and going by the edges the dish could flip back
+  // and forth between the two categories.
+  function itemPlaceAt(rect) {
     const list = listRef.current;
     const elements = slideElements(list);
-    const middle = (id) => {
-      const element = elements.get(id);
-      return viewportTop(element, list) + element.offsetHeight / 2;
-    };
+    const y = rect.top + rect.height / 2;
     const targets = itemTargets();
     let target = targets[0];
     for (const section of targets) {
-      if (middle(categoryId(section.group)) <= y) target = section;
+      const header = elements.get(categoryId(section.group));
+      if (viewportTop(header, list) + header.offsetHeight / 2 <= y) target = section;
     }
+    const spot = viewportTop(elements.get(drag.id), list);
     const others = target.itemIds.filter((id) => id !== drag.id && elements.has(id));
-    return { group: target.group, index: others.filter((id) => middle(id) < y).length };
+    return {
+      group: target.group,
+      index: others.filter((id) => isPast(elements.get(id), rect, spot, list)).length,
+    };
   }
 
-  function categoryPlaceAt(y) {
+  function categoryPlaceAt(rect) {
     const list = listRef.current;
     const elements = slideElements(list);
-    return sections.filter((section) => {
-      if (section.group === drag.group) return false;
-      const header = elements.get(categoryId(section.group));
-      return viewportTop(header, list) + header.offsetHeight / 2 < y;
-    }).length;
+    const spot = viewportTop(elements.get(categoryId(drag.group)), list);
+    return sections.filter(
+      (section) => section.group !== drag.group && isPast(elements.get(categoryId(section.group)), rect, spot, list)
+    ).length;
   }
 
   // Moves the dragged dish to position index (counted without the dish
@@ -332,9 +353,8 @@ function SortableMenu({ menu, onReorder, renderItem }) {
   function handleDragMove({ active }) {
     const rect = active.rect.current.translated;
     if (!drag || drag.keyboard || !rect) return;
-    const y = rect.top + rect.height / 2;
-    if (drag.type === 'item') moveItem(itemPlaceAt(y));
-    else moveCategory(categoryPlaceAt(y));
+    if (drag.type === 'item') moveItem(itemPlaceAt(rect));
+    else moveCategory(categoryPlaceAt(rect));
   }
 
   function endDrag() {
