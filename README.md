@@ -44,6 +44,8 @@ The website talks to Supabase directly from the browser. The anon key is public 
 
 Run them in the Supabase SQL Editor in this order: `restaurant_owners.sql`, `orders.sql`, `auth_hardening.sql`, `images.sql`. All four are safe to run more than once, so after a change you can simply run the changed file again.
 
+While Zelfora is being built, `supabase/mock_data.sql` fills the database with demo data: demo customer accounts, full menus for the demo restaurants and four weeks of orders. Run it again to refresh the orders with recent dates. Never run it once there are real customers.
+
 ### Database access for Claude Code
 
 `.mcp.json` connects Claude Code to Supabase's official MCP server, scoped to this project. There are two servers: `supabase` (read-only) and `supabase-write` (every call needs your approval). To connect, start a new Claude Code conversation, type `/mcp`, and choose **Authenticate** for each server. This opens a Supabase login in your browser; no keys are stored in the repo. See "Database access from Claude Code" in `CLAUDE.md` for how it's used.
