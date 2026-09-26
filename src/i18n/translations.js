@@ -32,7 +32,8 @@ export const translations = {
     'home.searchPlaceholder': 'Zoek naar restaurants of gerechten...',
     'home.featured': 'Aanbevolen restaurants',
     'home.loading': 'Restaurants laden...',
-    'home.noResults': 'Geen restaurants gevonden voor "{query}".',
+    'home.noResults': 'Geen restaurants of gerechten gevonden voor "{query}".',
+    'home.moreDishes': '+{count} meer',
 
     'restaurant.notFound': 'Restaurant niet gevonden.',
     'restaurant.backHome': 'Terug naar home',
@@ -302,7 +303,8 @@ export const translations = {
     'home.searchPlaceholder': 'Search for restaurants or dishes...',
     'home.featured': 'Featured restaurants',
     'home.loading': 'Loading restaurants...',
-    'home.noResults': 'No restaurants found for "{query}".',
+    'home.noResults': 'No restaurants or dishes found for "{query}".',
+    'home.moreDishes': '+{count} more',
 
     'restaurant.notFound': 'Restaurant not found.',
     'restaurant.backHome': 'Back to home',
@@ -571,7 +573,8 @@ export const translations = {
     'home.searchPlaceholder': 'Nach Restaurants oder Gerichten suchen...',
     'home.featured': 'Empfohlene Restaurants',
     'home.loading': 'Restaurants werden geladen...',
-    'home.noResults': 'Keine Restaurants für „{query}“ gefunden.',
+    'home.noResults': 'Keine Restaurants oder Gerichte für „{query}“ gefunden.',
+    'home.moreDishes': '+{count} weitere',
 
     'restaurant.notFound': 'Restaurant nicht gefunden.',
     'restaurant.backHome': 'Zurück zur Startseite',

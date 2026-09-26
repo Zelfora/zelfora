@@ -4,6 +4,11 @@ import { supabase } from '../supabaseClient';
 import RestaurantCard from '../components/RestaurantCard';
 import { useTranslation } from '../context/LanguageContext';
 
+// Case- and accent-insensitive, so "creme brulee" finds "Crème brûlée".
+function normalize(text) {
+  return (text ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+}
+
 function Home() {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
@@ -12,12 +17,15 @@ function Home() {
 
   useEffect(() => {
     async function load() {
-      // is_open is a computed column (restaurant_owners.sql).
+      // is_open is a computed column (restaurant_owners.sql). The dish names,
+      // in menu order, are for the search.
       const { data, error } = await supabase
         .from('restaurants')
-        .select('*, is_open')
+        .select('*, is_open, menu_items(name)')
         .eq('published', true)
-        .order('name');
+        .order('name')
+        .order('position', { referencedTable: 'menu_items', nullsFirst: false })
+        .order('created_at', { referencedTable: 'menu_items' });
       // Open restaurants first; the sort is stable, so each group stays alphabetical.
       if (!error) setRestaurants(data.sort((a, b) => Number(b.is_open) - Number(a.is_open)));
       setLoading(false);
@@ -25,10 +33,18 @@ function Home() {
     load();
   }, []);
 
-  const filteredRestaurants = restaurants.filter((res) =>
-    res.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (res.cuisine ?? '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // A restaurant matches on its name, its cuisine or one of its dishes. The
+  // matching dishes are shown on its card.
+  const query = normalize(searchQuery.trim());
+  const results = restaurants.flatMap((restaurant) => {
+    if (!query) return [{ restaurant, dishes: [] }];
+    const dishes = restaurant.menu_items
+      .map((item) => item.name)
+      .filter((name) => normalize(name).includes(query));
+    const matches =
+      normalize(restaurant.name).includes(query) || normalize(restaurant.cuisine).includes(query);
+    return matches || dishes.length > 0 ? [{ restaurant, dishes }] : [];
+  });
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 md:px-8">
@@ -50,12 +66,12 @@ function Home() {
       ) : (
         <>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredRestaurants.map((restaurant) => (
-              <RestaurantCard key={restaurant.id} restaurant={restaurant} />
+            {results.map(({ restaurant, dishes }) => (
+              <RestaurantCard key={restaurant.id} restaurant={restaurant} matchedDishes={dishes} />
             ))}
           </div>
 
-          {filteredRestaurants.length === 0 && (
+          {results.length === 0 && (
             <p className="mt-12 text-center text-text-muted">
               {t('home.noResults', { query: searchQuery })}
             </p>

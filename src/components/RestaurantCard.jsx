@@ -1,11 +1,15 @@
 import { Link } from 'react-router-dom';
-import { Clock, Bike } from 'lucide-react';
+import { Clock, Bike, Search } from 'lucide-react';
 import StarRating from './StarRating';
 import FoodImage from './FoodImage';
 import { useTranslation } from '../context/LanguageContext';
 
-function RestaurantCard({ restaurant }) {
+const MAX_SHOWN_DISHES = 3;
+
+// matchedDishes: names of the dishes that matched the home page search.
+function RestaurantCard({ restaurant, matchedDishes = [] }) {
   const { t, formatPrice } = useTranslation();
+  const hiddenDishes = matchedDishes.length - MAX_SHOWN_DISHES;
 
   return (
     <Link
@@ -30,6 +34,17 @@ function RestaurantCard({ restaurant }) {
           <StarRating rating={restaurant.rating} />
         </div>
         <p className="mb-3 text-sm text-text-muted">{restaurant.cuisine}</p>
+        {matchedDishes.length > 0 && (
+          <p className="mb-3 flex items-start gap-1.5 text-sm text-text">
+            <Search size={14} className="mt-[3px] flex-shrink-0 text-primary-300" />
+            <span>
+              {matchedDishes.slice(0, MAX_SHOWN_DISHES).join(', ')}
+              {hiddenDishes > 0 && (
+                <span className="text-text-muted"> {t('home.moreDishes', { count: hiddenDishes })}</span>
+              )}
+            </span>
+          </p>
+        )}
         <div className="flex items-center justify-between border-t border-border pt-3 text-sm text-text-muted">
           <span className="flex items-center gap-1">
             <Clock size={16} className="text-accent-400" />
