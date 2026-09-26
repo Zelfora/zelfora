@@ -83,9 +83,13 @@ function RestaurantDetail() {
           <ArrowLeft size={16} />
           {t('common.back')}
         </Link>
-        <h1 className="absolute bottom-4 left-4 font-display text-3xl font-bold text-text md:bottom-6 md:left-8 md:text-4xl">
-          {restaurant.name}
-        </h1>
+        {/* In the same frame as the menu below, so the name lines up with it
+            and moves along when the cart panel opens. */}
+        <div className="cart-shift absolute inset-x-0 bottom-4 md:bottom-6">
+          <h1 className="mx-auto max-w-6xl px-4 font-display text-3xl font-bold text-text md:px-8 md:text-4xl">
+            {restaurant.name}
+          </h1>
+        </div>
       </div>
 
       {/* Moves aside for the cart panel on wide screens (CartPanel). */}

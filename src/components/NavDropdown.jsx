@@ -10,17 +10,31 @@ function NavDropdown({ label, value, options, onChange, children }) {
   useEffect(() => {
     if (!open) return;
 
-    function handleClick(e) {
+    // Any interaction elsewhere closes the menu: a press outside it (with
+    // touch this fires as soon as the finger lands, also when it goes on to
+    // scroll), any scrolling, or focus moving away.
+    function closeIfOutside(e) {
       if (!containerRef.current?.contains(e.target)) setOpen(false);
+    }
+    function close() {
+      setOpen(false);
     }
     function handleKey(e) {
       if (e.key === 'Escape') setOpen(false);
     }
 
-    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('pointerdown', closeIfOutside);
+    document.addEventListener('focusin', closeIfOutside);
+    // Scroll events don't bubble; capturing also catches scrolling panels.
+    document.addEventListener('scroll', close, { capture: true, passive: true });
+    // Also when the page is already at its end and doesn't move.
+    window.addEventListener('wheel', close, { passive: true });
     document.addEventListener('keydown', handleKey);
     return () => {
-      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('pointerdown', closeIfOutside);
+      document.removeEventListener('focusin', closeIfOutside);
+      document.removeEventListener('scroll', close, { capture: true });
+      window.removeEventListener('wheel', close);
       document.removeEventListener('keydown', handleKey);
     };
   }, [open]);

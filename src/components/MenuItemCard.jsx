@@ -49,11 +49,16 @@ function MenuItemCard({ item, orderable = true, onOpen }) {
         </span>
       ) : (
         orderable && (
+          // A mouse and touch shortcut to the same dialog; keyboards and
+          // screen readers use the name button. It sits above the stretched
+          // button (z-10): scaling on hover lifts it over that button anyway,
+          // so it needs its own click handler.
           <span
             aria-hidden="true"
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-primary-500 to-accent-500 text-white shadow-glow transition-transform duration-200 group-hover:scale-110 group-active:scale-95"
+            onClick={() => onOpen(item)}
+            className="relative z-10 flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded-full bg-gradient-to-r from-primary-500 to-accent-500 text-white shadow-glow transition-[scale,rotate,box-shadow] duration-200 group-hover:scale-110 group-active:scale-95 hover:rotate-90 hover:scale-125 hover:shadow-glow-lg active:scale-95"
           >
-            <Plus size={18} />
+            <Plus size={20} />
           </span>
         )
       )}
