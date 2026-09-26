@@ -12,6 +12,10 @@ import { deleteStoredImage } from '../services/images';
 import { optionGroups } from '../services/menuOptions';
 import { fetchMenu } from '../services/restaurants';
 
+// How long a dish that moved to another category through its form stays
+// highlighted: the length of .menu-row-flash in index.css.
+const HIGHLIGHT_MS = 3000;
+
 // The portal's Menu tab: add dishes, and edit, reorder (drag and drop), mark
 // as sold out or delete them. Customers see the menu in the order set here.
 function PartnerMenu({ restaurant }) {
@@ -51,10 +55,9 @@ function PartnerMenu({ restaurant }) {
     return () => clearTimeout(timer);
   }, [saveStatus]);
 
-  // Long enough for the scroll and the highlight (MenuItemRow).
   useEffect(() => {
     if (!movedId) return;
-    const timer = setTimeout(() => setMovedId(null), 1500);
+    const timer = setTimeout(() => setMovedId(null), HIGHLIGHT_MS);
     return () => clearTimeout(timer);
   }, [movedId]);
 
@@ -257,7 +260,7 @@ function MenuItemRow({ item, handle, categories, menu, highlighted = false, onUp
       className="relative flex items-center gap-2 rounded-card border border-border/70 bg-bg/40 py-2 pr-2 pl-1 sm:gap-3"
     >
       {highlighted && (
-        <span aria-hidden="true" className="cart-line-flash pointer-events-none absolute inset-0 rounded-card" />
+        <span aria-hidden="true" className="menu-row-flash pointer-events-none absolute inset-0 rounded-card" />
       )}
       {handle}
       <FoodImage

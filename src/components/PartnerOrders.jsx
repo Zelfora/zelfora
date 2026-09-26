@@ -20,6 +20,14 @@ const ADVANCE_LABEL = {
   delivering: 'partner.orders.markDelivered',
 };
 
+// An order's card is edged in its status color (as in OrderStatusBadge), so
+// orders being prepared and orders on their way stand apart in a group.
+const CARD_STATUS_CLASS = {
+  placed: 'border-warn-400/60 bg-warn-400/5',
+  preparing: 'border-primary-400/50 bg-primary-500/5',
+  delivering: 'border-accent-400/50 bg-accent-400/5',
+};
+
 const VIEW_OPTIONS = [
   { view: 'list', Icon: List, label: 'partner.orders.viewList' },
   { view: 'tiles', Icon: LayoutGrid, label: 'partner.orders.viewTiles' },
@@ -219,7 +227,7 @@ function OrderCard({ order, onUpdate }) {
   return (
     <li
       className={`flex min-w-0 flex-col rounded-card border p-4 ${
-        order.status === 'placed' ? 'border-warn-400/60 bg-warn-400/5' : 'border-border bg-bg/40'
+        CARD_STATUS_CLASS[order.status] ?? 'border-border bg-bg/40'
       }`}
     >
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">

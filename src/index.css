@@ -224,8 +224,7 @@
       opacity: 0;
     }
   }
-  /* The line that was just added lights up for a moment. The portal uses it
-     too, for a dish that moved to another category through its form. */
+  /* The line that was just added lights up for a moment. */
   .cart-line-flash {
     animation: cart-line-flash 1400ms ease-out forwards;
   }
@@ -235,6 +234,23 @@
     }
     to {
       background-color: transparent;
+    }
+  }
+  /* PartnerMenu: a dish that moved to another category through its form
+     stays lit while the page scrolls to it, then slowly fades. Keep the
+     duration in step with HIGHLIGHT_MS there. */
+  .menu-row-flash {
+    animation: menu-row-flash 3000ms ease-out forwards;
+  }
+  @keyframes menu-row-flash {
+    0%,
+    40% {
+      background-color: color-mix(in oklab, var(--color-primary-500) 22%, transparent);
+      box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--color-primary-500) 60%, transparent);
+    }
+    100% {
+      background-color: transparent;
+      box-shadow: inset 0 0 0 2px transparent;
     }
   }
   /* MenuItemDialog: the "adding this starts a new order" notice lights up
