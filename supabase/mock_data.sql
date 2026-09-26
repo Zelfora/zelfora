@@ -2,7 +2,7 @@
 -- Fills the database with a demo mockup:
 --   1. demo customer accounts (they can't sign in: they have no password)
 --   2. photos and opening hours for the five demo restaurants
---   3. full menus for the five demo restaurants
+--   3. full menus for the five demo restaurants, many dishes with options
 --   4. four weeks of orders from the demo customers at every published
 --      restaurant with a menu, plus orders in progress right now at open
 --      restaurants that have an owner, so the portal has work to do
@@ -37,6 +37,20 @@ $$;
 create or replace function pg_temp.mealdb(file text)
 returns text language sql immutable as $$
   select 'https://www.themealdb.com/images/media/meals/' || file || '.jpg'
+$$;
+
+-- Dish options (menu_items.options, see restaurant_owners.sql): a group the
+-- customer picks min to max choices from (max null: no limit), and a choice
+-- with its extra price.
+create or replace function pg_temp.option_group(p_name text, p_min int, p_max int, variadic p_choices jsonb[])
+returns jsonb language sql as $$
+  select jsonb_build_object('id', gen_random_uuid(), 'name', p_name, 'min', p_min, 'max', p_max,
+                            'choices', to_jsonb(p_choices))
+$$;
+
+create or replace function pg_temp.choice(p_name text, p_price numeric default 0)
+returns jsonb language sql as $$
+  select jsonb_build_object('id', gen_random_uuid(), 'name', p_name, 'price', p_price)
 $$;
 
 -- The id of a demo restaurant; fails unless exactly one has this name.
@@ -271,6 +285,186 @@ select pg_temp.restaurant_id('Taco Fiesta'), v.* from (values
   (23, 'Dranken', 'Agua de Jamaica', 'IJsthee van hibiscusbloemen.', 3.50, null)
 ) as v(position, category, name, description, price, image);
 
+-- Options for many dishes: sizes, sauces, extras and things to leave out.
+-- The Burger Club
+update public.menu_items set options = jsonb_build_array(
+  pg_temp.option_group('Maak er een menu van', 0, 1,
+    pg_temp.choice('Met portie friet', 3.50), pg_temp.choice('Met truffelfriet', 5.00),
+    pg_temp.choice('Met uienringen', 4.00)),
+  pg_temp.option_group('Extra''s', 0, null,
+    pg_temp.choice('Extra cheddar', 0.75), pg_temp.choice('Krokant spek', 1.50),
+    pg_temp.choice('Gebakken ei', 1.00), pg_temp.choice('Jalapeños', 0.50),
+    pg_temp.choice('Gekarameliseerde ui', 0.75), pg_temp.choice('Avocado', 1.25)),
+  pg_temp.option_group('Zonder', 0, null,
+    pg_temp.choice('Zonder ui'), pg_temp.choice('Zonder augurk'), pg_temp.choice('Zonder tomaat'),
+    pg_temp.choice('Saus apart'))
+)
+where restaurant_id = pg_temp.restaurant_id('The Burger Club') and category = 'Burgers';
+
+update public.menu_items set options = jsonb_build_array(
+  pg_temp.option_group('Dipsaus', 1, 1,
+    pg_temp.choice('Honing-mosterd'), pg_temp.choice('Chipotle-mayo'), pg_temp.choice('Barbecuesaus'),
+    pg_temp.choice('Knoflooksaus')),
+  pg_temp.option_group('Extra dip', 0, 2,
+    pg_temp.choice('Honing-mosterd', 0.75), pg_temp.choice('Chipotle-mayo', 0.75),
+    pg_temp.choice('Barbecuesaus', 0.75))
+)
+where restaurant_id = pg_temp.restaurant_id('The Burger Club') and name = 'Chicken Tenders (5 stuks)';
+
+update public.menu_items set options = jsonb_build_array(
+  pg_temp.option_group('Pittigheid', 1, 1,
+    pg_temp.choice('Mild'), pg_temp.choice('Medium'), pg_temp.choice('Heet'))
+)
+where restaurant_id = pg_temp.restaurant_id('The Burger Club') and name = 'Buffalo Wings (8 stuks)';
+
+update public.menu_items set options = jsonb_build_array(
+  pg_temp.option_group('Formaat', 1, 1,
+    pg_temp.choice('Normaal'), pg_temp.choice('Groot', 1.50)),
+  pg_temp.option_group('Saus', 0, 2,
+    pg_temp.choice('Mayonaise', 0.60), pg_temp.choice('Ketchup', 0.60), pg_temp.choice('Curry', 0.60),
+    pg_temp.choice('Truffelmayo', 0.95), pg_temp.choice('Chipotle-mayo', 0.75))
+)
+where restaurant_id = pg_temp.restaurant_id('The Burger Club') and name = 'Portie Friet';
+
+update public.menu_items set options = jsonb_build_array(
+  pg_temp.option_group('Formaat', 1, 1,
+    pg_temp.choice('Regular'), pg_temp.choice('Large', 1.50)),
+  pg_temp.option_group('Topping', 0, null,
+    pg_temp.choice('Extra slagroom', 0.50), pg_temp.choice('Oreo-crumble', 0.75),
+    pg_temp.choice('Karamelsaus', 0.50))
+)
+where restaurant_id = pg_temp.restaurant_id('The Burger Club') and name like '%Milkshake';
+
+-- Sushi Hana
+update public.menu_items set options = jsonb_build_array(
+  pg_temp.option_group('Extra''s', 0, null,
+    pg_temp.choice('Spicy mayo', 0.50), pg_temp.choice('Unagisaus', 0.50),
+    pg_temp.choice('Extra wasabi'), pg_temp.choice('Extra gember'))
+)
+where restaurant_id = pg_temp.restaurant_id('Sushi Hana') and category = 'Maki & rolls';
+
+update public.menu_items set options = jsonb_build_array(
+  pg_temp.option_group('Pittigheid', 1, 1,
+    pg_temp.choice('Mild'), pg_temp.choice('Medium'), pg_temp.choice('Heet')),
+  pg_temp.option_group('Toppings', 0, null,
+    pg_temp.choice('Extra ei', 1.50), pg_temp.choice('Extra chashu', 3.00),
+    pg_temp.choice('Extra noedels', 2.00), pg_temp.choice('Maïs', 0.75), pg_temp.choice('Nori', 0.50))
+)
+where restaurant_id = pg_temp.restaurant_id('Sushi Hana') and name = 'Tonkotsu Ramen';
+
+update public.menu_items set options = jsonb_build_array(
+  pg_temp.option_group('Rijst', 1, 1,
+    pg_temp.choice('Witte rijst'), pg_temp.choice('Gebakken rijst', 1.50)),
+  pg_temp.option_group('Pittigheid', 1, 1,
+    pg_temp.choice('Mild'), pg_temp.choice('Medium'), pg_temp.choice('Heet'))
+)
+where restaurant_id = pg_temp.restaurant_id('Sushi Hana') and name = 'Chicken Katsu Curry';
+
+update public.menu_items set options = jsonb_build_array(
+  pg_temp.option_group('Eiwit', 1, 1,
+    pg_temp.choice('Kip'), pg_temp.choice('Garnalen', 2.50), pg_temp.choice('Tofu'))
+)
+where restaurant_id = pg_temp.restaurant_id('Sushi Hana') and name = 'Yaki Udon';
+
+update public.menu_items set options = jsonb_build_array(
+  pg_temp.option_group('Vulling', 1, 1,
+    pg_temp.choice('Kip en groente'), pg_temp.choice('Groente'), pg_temp.choice('Garnaal', 1.00))
+)
+where restaurant_id = pg_temp.restaurant_id('Sushi Hana') and name = 'Gyoza (6 stuks)';
+
+-- Pizzeria da Luigi
+update public.menu_items set options = jsonb_build_array(
+  pg_temp.option_group('Formaat', 1, 1,
+    pg_temp.choice('Medium (30 cm)'), pg_temp.choice('Large (35 cm)', 3.00)),
+  pg_temp.option_group('Bodem', 0, 1,
+    pg_temp.choice('Volkoren bodem', 1.00), pg_temp.choice('Glutenvrije bodem', 2.50)),
+  pg_temp.option_group('Extra toppings', 0, 4,
+    pg_temp.choice('Extra mozzarella', 1.50), pg_temp.choice('Buffelmozzarella', 2.50),
+    pg_temp.choice('Champignons', 1.00), pg_temp.choice('Salami', 1.50), pg_temp.choice('Rode ui', 0.75),
+    pg_temp.choice('Jalapeños', 0.75), pg_temp.choice('Olijven', 0.75), pg_temp.choice('Rucola', 1.00))
+)
+where restaurant_id = pg_temp.restaurant_id('Pizzeria da Luigi') and category = 'Pizza' and name <> 'Calzone';
+
+update public.menu_items set options = jsonb_build_array(
+  pg_temp.option_group('Extra''s', 0, null,
+    pg_temp.choice('Extra Parmezaan', 1.00), pg_temp.choice('Burrata', 3.50), pg_temp.choice('Chilivlokken'))
+)
+where restaurant_id = pg_temp.restaurant_id('Pizzeria da Luigi') and category = 'Pasta';
+
+update public.menu_items set options = jsonb_build_array(
+  pg_temp.option_group('Smaken', 1, 2,
+    pg_temp.choice('Pistache'), pg_temp.choice('Stracciatella'), pg_temp.choice('Citroen'),
+    pg_temp.choice('Chocolade'), pg_temp.choice('Aardbei'))
+)
+where restaurant_id = pg_temp.restaurant_id('Pizzeria da Luigi') and name = 'Gelato (2 bolletjes)';
+
+-- Green Bowl
+update public.menu_items set options = jsonb_build_array(
+  pg_temp.option_group('Basis', 1, 1,
+    pg_temp.choice('Sushirijst'), pg_temp.choice('Zilvervliesrijst'), pg_temp.choice('Quinoa', 0.50),
+    pg_temp.choice('Gemengde sla')),
+  pg_temp.option_group('Extra eiwit', 0, 2,
+    pg_temp.choice('Kip', 2.50), pg_temp.choice('Zalm', 3.50), pg_temp.choice('Tofu', 2.00),
+    pg_temp.choice('Gekookt ei', 1.00), pg_temp.choice('Falafel', 2.00)),
+  pg_temp.option_group('Toppings', 0, null,
+    pg_temp.choice('Avocado', 1.50), pg_temp.choice('Edamame', 1.00),
+    pg_temp.choice('Geroosterde noten', 0.75), pg_temp.choice('Sesam'))
+)
+where restaurant_id = pg_temp.restaurant_id('Green Bowl') and category = 'Bowls';
+
+update public.menu_items set options = jsonb_build_array(
+  pg_temp.option_group('Extra eiwit', 0, 2,
+    pg_temp.choice('Kip', 2.50), pg_temp.choice('Zalm', 3.50), pg_temp.choice('Tofu', 2.00),
+    pg_temp.choice('Gekookt ei', 1.00))
+)
+where restaurant_id = pg_temp.restaurant_id('Green Bowl') and category = 'Salades';
+
+update public.menu_items set options = jsonb_build_array(
+  pg_temp.option_group('Formaat', 1, 1,
+    pg_temp.choice('Regular (400 ml)'), pg_temp.choice('Large (600 ml)', 1.50)),
+  pg_temp.option_group('Boost', 0, 2,
+    pg_temp.choice('Proteïne', 1.00), pg_temp.choice('Chiazaad', 0.50), pg_temp.choice('Gember', 0.50),
+    pg_temp.choice('Met havermelk'))
+)
+where restaurant_id = pg_temp.restaurant_id('Green Bowl') and category = 'Smoothies & sappen'
+  and name <> 'Verse jus d''orange (30 cl)';
+
+-- Taco Fiesta
+update public.menu_items set options = jsonb_build_array(
+  pg_temp.option_group('Pittigheid', 1, 1,
+    pg_temp.choice('Mild'), pg_temp.choice('Medium'), pg_temp.choice('Heet')),
+  pg_temp.option_group('Extra''s', 0, null,
+    pg_temp.choice('Guacamole', 1.50), pg_temp.choice('Extra kaas', 0.75), pg_temp.choice('Jalapeños', 0.50),
+    pg_temp.choice('Zure room', 0.50))
+)
+where restaurant_id = pg_temp.restaurant_id('Taco Fiesta')
+  and (category = 'Tacos' or name in ('Chicken Burrito', 'Burrito Bowl'));
+
+update public.menu_items set options = jsonb_build_array(
+  pg_temp.option_group('Vlees', 1, 1,
+    pg_temp.choice('Kip'), pg_temp.choice('Rundvlees', 1.00), pg_temp.choice('Pulled pork', 0.50),
+    pg_temp.choice('Chili sin carne (vega)')),
+  pg_temp.option_group('Pittigheid', 1, 1,
+    pg_temp.choice('Mild'), pg_temp.choice('Medium'), pg_temp.choice('Heet')),
+  pg_temp.option_group('Extra''s', 0, null,
+    pg_temp.choice('Guacamole', 1.50), pg_temp.choice('Extra kaas', 0.75), pg_temp.choice('Jalapeños', 0.50),
+    pg_temp.choice('Zure room', 0.50))
+)
+where restaurant_id = pg_temp.restaurant_id('Taco Fiesta') and name = 'Burrito Supreme';
+
+update public.menu_items set options = jsonb_build_array(
+  pg_temp.option_group('Extra''s', 0, null,
+    pg_temp.choice('Pulled pork', 2.50), pg_temp.choice('Extra guacamole', 1.50),
+    pg_temp.choice('Jalapeños', 0.50), pg_temp.choice('Extra kaas', 0.75))
+)
+where restaurant_id = pg_temp.restaurant_id('Taco Fiesta') and name like '%Nachos%';
+
+update public.menu_items set options = jsonb_build_array(
+  pg_temp.option_group('Vulling erbij', 0, 2,
+    pg_temp.choice('Kip', 2.00), pg_temp.choice('Pulled pork', 2.50), pg_temp.choice('Zwarte bonen', 1.00))
+)
+where restaurant_id = pg_temp.restaurant_id('Taco Fiesta') and name = 'Quesadilla Queso';
+
 -- A few dishes are sold out today.
 update public.menu_items set available = false
 where (restaurant_id, name) in (
@@ -304,6 +498,34 @@ begin
 end;
 $$;
 
+-- Options for an ordered dish, as validate_order in orders.sql stores them:
+-- the minimum from each required group, and now and then one from an
+-- optional group.
+create or replace function pg_temp.random_options(p_options jsonb)
+returns jsonb language plpgsql as $$
+declare
+  grp    jsonb;
+  wanted int;
+  chosen jsonb := '[]'::jsonb;
+begin
+  for grp in select value from jsonb_array_elements(p_options) loop
+    wanted := case when (grp->>'min')::int > 0 then (grp->>'min')::int
+                   when random() < 0.3 then 1
+                   else 0 end;
+    chosen := chosen || coalesce((
+      select jsonb_agg(jsonb_build_object('id', c.value->>'id', 'group', grp->>'name',
+                                          'name', c.value->>'name', 'price', (c.value->>'price')::numeric)
+                       order by c.ord)
+      from (select t.value, t.ord
+            from jsonb_array_elements(grp->'choices') with ordinality as t(value, ord)
+            order by random()
+            limit wanted) as c
+    ), '[]'::jsonb);
+  end loop;
+  return chosen;
+end;
+$$;
+
 -- A demo customer, favouring the ones with a higher weight.
 create or replace function pg_temp.random_customer()
 returns uuid language sql as $$
@@ -313,10 +535,11 @@ returns uuid language sql as $$
   limit 1
 $$;
 
--- One order: 1 to 4 different dishes, sometimes a drink, and the customer's
--- details from raw_user_meta_data (or p_details). Every dish has a fixed
--- popularity from 1 to 5 (derived from its name), so some become bestsellers.
--- Delivered orders arrive 20 to 55 minutes after they were placed.
+-- One order: 1 to 4 different dishes with random options, sometimes a drink,
+-- and the customer's details from raw_user_meta_data (or p_details). Every
+-- dish has a fixed popularity from 1 to 5 (derived from its name), so some
+-- become bestsellers. Delivered orders arrive 20 to 55 minutes after they
+-- were placed.
 create or replace function pg_temp.mock_order(
   p_restaurant uuid, p_customer uuid, p_created timestamptz, p_status text, p_details jsonb default null
 ) returns void language plpgsql as $$
@@ -350,11 +573,13 @@ begin
     select raw_user_meta_data into details from auth.users where id = p_customer;
   end if;
 
-  select jsonb_agg(jsonb_build_object('menu_item_id', d.id, 'name', d.name, 'price', d.price, 'quantity', d.quantity)),
-         sum(d.price * d.quantity)
+  -- price is for one, options included, as validate_order stores it.
+  select jsonb_agg(jsonb_build_object('menu_item_id', d.id, 'name', d.name, 'price', d.price + o.extra,
+                                      'quantity', d.quantity, 'options', o.chosen)),
+         sum((d.price + o.extra) * d.quantity)
     into items, subtotal
   from (
-    (select m.id, m.name, m.price,
+    (select m.id, m.name, m.price, m.options,
             case when random() < 0.75 then 1 when random() < 0.8 then 2 else 3 end as quantity
      from public.menu_items m
      where m.restaurant_id = p_restaurant
@@ -363,7 +588,7 @@ begin
      order by -ln(1 - random()) / (1 + abs(hashtext(m.name)::bigint) % 5)
      limit dishes)
     union all
-    (select m.id, m.name, m.price, case when random() < 0.7 then 1 else 2 end
+    (select m.id, m.name, m.price, m.options, case when random() < 0.7 then 1 else 2 end
      from public.menu_items m
      where with_drink
        and m.restaurant_id = p_restaurant
@@ -371,7 +596,13 @@ begin
        and m.category = any (drinks)
      order by random()
      limit 1)
-  ) d;
+  ) d
+  -- offset 0 keeps random_options from running twice per dish.
+  cross join lateral (
+    select r.chosen,
+           coalesce((select sum((x.value->>'price')::numeric) from jsonb_array_elements(r.chosen) as x(value)), 0) as extra
+    from (select pg_temp.random_options(d.options) as chosen offset 0) as r
+  ) as o;
   if items is null then
     return;
   end if;

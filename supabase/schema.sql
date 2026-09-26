@@ -6,7 +6,8 @@
 -- re-export after running them to confirm. The same goes for the columns
 -- added on 2026-09-26 by restaurant_owners.sql (requested_name,
 -- accepting_orders, opening_hours, menu_items.available/position) and
--- orders.sql (the delivery details, delivery_fee and delivered_at on orders).
+-- orders.sql (the delivery details, delivery_fee and delivered_at on orders),
+-- and menu_items.options with its CHECK constraint (restaurant_owners.sql).
 --
 -- Not included in this export:
 --   - RLS policies and triggers: see restaurant_owners.sql (restaurants and
@@ -16,8 +17,8 @@
 --     policies, the column grant, the validate_order and
 --     check_order_status_change triggers, the Realtime publication)
 --   - Functions: valid_opening_hours, is_within_opening_hours, is_open (a
---     computed column on restaurants) and reorder_menu_items in
---     restaurant_owners.sql
+--     computed column on restaurants), valid_menu_options and
+--     reorder_menu_items in restaurant_owners.sql
 --   - The "images" Storage bucket and its policies: see images.sql
 --   - profiles RLS, set up in the dashboard: RLS enabled, with policies
 --     "Users can view their own profile" (SELECT) and
@@ -76,11 +77,13 @@ CREATE TABLE public.menu_items (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   available boolean NOT NULL DEFAULT true,
   position integer,
+  options jsonb NOT NULL DEFAULT '[]'::jsonb,
   CONSTRAINT menu_items_pkey PRIMARY KEY (id),
   CONSTRAINT menu_items_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id),
   CONSTRAINT menu_items_text_lengths CHECK (char_length(btrim(name)) >= 1 AND char_length(btrim(name)) <= 100 AND char_length(category) <= 50 AND char_length(description) <= 500 AND char_length(image) <= 2000),
   CONSTRAINT menu_items_price_range CHECK (price > 0::numeric AND price < 1000::numeric AND price = round(price, 2)),
-  CONSTRAINT menu_items_image_https CHECK (image ~* '^https://'::text)
+  CONSTRAINT menu_items_image_https CHECK (image ~* '^https://'::text),
+  CONSTRAINT menu_items_options_valid CHECK (valid_menu_options(options))
 );
 CREATE TABLE public.orders (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

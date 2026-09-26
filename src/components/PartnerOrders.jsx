@@ -4,6 +4,7 @@ import { useTranslation } from '../context/LanguageContext';
 import OrderStatusBadge from './OrderStatusBadge';
 import { primaryButtonClass, secondaryButtonClass } from './formHelpers';
 import { NEXT_STATUS, deliveredSameDay, isActiveOrder, orderErrorMessage, orderNumber } from '../services/orders';
+import { formatOptions } from '../services/menuOptions';
 
 const cardClass = 'rounded-card border border-border bg-surface/70 p-6 backdrop-blur-md';
 
@@ -183,10 +184,14 @@ function OrderCard({ order, onUpdate }) {
       )}
 
       <ul className="mb-3 divide-y divide-border text-sm">
-        {order.items.map((item) => (
-          <li key={item.menu_item_id} className="flex justify-between gap-3 py-1.5">
+        {/* The same dish can be on an order twice, with other options. */}
+        {order.items.map((item, index) => (
+          <li key={index} className="flex justify-between gap-3 py-1.5">
             <span className="text-text">
               <span className="font-semibold">{item.quantity}×</span> {item.name}
+              {item.options?.length > 0 && (
+                <span className="block pl-5 text-text-muted">{formatOptions(item.options)}</span>
+              )}
             </span>
             <span className="text-text-muted">{formatPrice(Number(item.price) * item.quantity)}</span>
           </li>

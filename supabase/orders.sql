@@ -3,7 +3,8 @@
 -- their restaurant in the portal and move them through the statuses.
 --
 -- Run in Supabase Dashboard -> SQL Editor AFTER restaurant_owners.sql
--- (validate_order uses is_open() and menu_items.available from there).
+-- (validate_order uses is_open(), menu_items.available and menu_items.options
+-- from there).
 -- RLS on orders is enabled in auth_hardening.sql. Safe to re-run.
 
 -- ---------------------------------------------------------------------------
@@ -113,6 +114,11 @@ declare
   item          jsonb;
   menu_row      record;
   qty           int;
+  chosen        jsonb;
+  clean_options jsonb;
+  options_price numeric;
+  matched       int;
+  unit_price    numeric;
   clean_items   jsonb := '[]'::jsonb;
   computed      numeric := 0;
 begin
@@ -151,7 +157,7 @@ begin
       raise exception 'Invalid quantity';
     end if;
 
-    select id, name, price, available into menu_row
+    select id, name, price, available, options into menu_row
     from menu_items
     where id::text = item->>'menu_item_id'
       and restaurant_id = new.restaurant_id;
@@ -164,13 +170,52 @@ begin
         using hint = 'sold_out', detail = menu_row.name;
     end if;
 
+    -- The chosen options ([{"id": …}, …]; see menu_items.options in
+    -- restaurant_owners.sql). Only their ids are used: names and prices come
+    -- from the menu.
+    chosen := case when jsonb_typeof(item->'options') = 'array' then item->'options' else '[]'::jsonb end;
+
+    select coalesce(jsonb_agg(jsonb_build_object(
+             'id',    c.choice->>'id',
+             'group', g.grp->>'name',
+             'name',  c.choice->>'name',
+             'price', (c.choice->>'price')::numeric
+           ) order by g.ord, c.ord), '[]'::jsonb),
+           coalesce(sum((c.choice->>'price')::numeric), 0),
+           count(*)
+      into clean_options, options_price, matched
+    from jsonb_array_elements(menu_row.options) with ordinality as g(grp, ord)
+    cross join lateral jsonb_array_elements(g.grp->'choices') with ordinality as c(choice, ord)
+    where c.choice->>'id' in (select o.value->>'id' from jsonb_array_elements(chosen) as o(value));
+
+    -- Every chosen id must be one of the dish's choices, once, and each group
+    -- needs between min and max choices. If not, the owner changed the
+    -- options after the dish went into the cart.
+    if matched <> jsonb_array_length(chosen) or exists (
+      select 1
+      from jsonb_array_elements(menu_row.options) as g(grp)
+      cross join lateral (
+        select count(*) as n
+        from jsonb_array_elements(g.grp->'choices') as c(choice)
+        where c.choice->>'id' in (select o.value->>'id' from jsonb_array_elements(chosen) as o(value))
+      ) as picked
+      where picked.n < (g.grp->>'min')::int
+         or picked.n > coalesce((g.grp->>'max')::int, picked.n)
+    ) then
+      raise exception 'The options of % have changed', menu_row.name
+        using hint = 'options_changed', detail = menu_row.name;
+    end if;
+
+    -- price is the price of one, options included.
+    unit_price := menu_row.price + options_price;
     clean_items := clean_items || jsonb_build_object(
       'menu_item_id', menu_row.id,
       'name',         menu_row.name,
-      'price',        menu_row.price,
-      'quantity',     qty
+      'price',        unit_price,
+      'quantity',     qty,
+      'options',      clean_options
     );
-    computed := computed + menu_row.price * qty;
+    computed := computed + unit_price * qty;
   end loop;
 
   new.items        := clean_items;

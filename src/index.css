@@ -42,6 +42,9 @@
   /* Glow shadow */
   --shadow-glow: 0 0 20px rgba(147, 51, 234, 0.45);
   --shadow-glow-lg: 0 0 32px rgba(192, 38, 246, 0.5);
+
+  /* Easing for panels and sheets: quick start, long soft landing */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 /* Light theme: same palette, lifted backgrounds and deeper accents so text
@@ -77,9 +80,198 @@
 }
 
 @layer base {
+  /* Keep the scrollbar's space when a dialog stops the page from
+     scrolling, so nothing shifts sideways. That space isn't under the
+     dialog's backdrop, so it dims along with it. */
+  html {
+    scrollbar-gutter: stable;
+    background-color: var(--color-bg);
+    transition: background-color 220ms ease;
+  }
+  html:has(.modal[open]) {
+    overflow: hidden;
+    background-color: color-mix(in srgb, var(--color-bg), rgb(5 2 12) 55%);
+  }
+  html:has(.modal[data-closing]) {
+    background-color: var(--color-bg);
+  }
+
   body {
     transition: background-color 0.2s ease, color 0.2s ease;
     @apply bg-bg text-text font-sans;
+  }
+}
+
+@layer components {
+  /* Modal.jsx: a <dialog> filling the screen, with the card inside. On
+     phones the card slides up as a sheet; from sm it pops in. While
+     data-closing is set it animates out, then Modal closes it. */
+  .modal {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-text);
+    /* clip, not hidden: a hidden box can still be scrolled by focus. */
+    overflow: clip;
+  }
+  .modal::backdrop {
+    background: rgb(5 2 12 / 0.55);
+    backdrop-filter: blur(6px);
+    animation: modal-fade-in 220ms ease-out;
+  }
+  .modal[data-closing]::backdrop {
+    animation: modal-fade-out 200ms ease-in forwards;
+  }
+  .modal-card {
+    animation: modal-sheet-in 380ms var(--ease-drawer);
+  }
+  .modal[data-closing] .modal-card {
+    animation: modal-sheet-out 220ms ease-in forwards;
+  }
+  @media (width >= 40rem) {
+    .modal-card {
+      animation-name: modal-pop-in;
+      animation-duration: 280ms;
+    }
+    .modal[data-closing] .modal-card {
+      animation-name: modal-pop-out;
+      animation-duration: 180ms;
+    }
+  }
+  @keyframes modal-fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes modal-fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+  @keyframes modal-sheet-in {
+    from {
+      transform: translateY(100%);
+    }
+  }
+  @keyframes modal-sheet-out {
+    to {
+      transform: translateY(100%);
+    }
+  }
+  @keyframes modal-pop-in {
+    from {
+      opacity: 0;
+      transform: translateY(16px) scale(0.96);
+    }
+  }
+  @keyframes modal-pop-out {
+    to {
+      opacity: 0;
+      transform: translateY(8px) scale(0.97);
+    }
+  }
+
+  /* CartPanel.jsx sets these on <body>. From xl the panel floats on the
+     right and the page (.cart-shift) makes room for it; folded, it's a
+     button at the bottom. Below xl a bar at the bottom opens the cart. The
+     page gets room at the bottom for the button or the bar. */
+  @media (width >= 80rem) {
+    .cart-shift {
+      transition: padding-right 550ms var(--ease-drawer);
+    }
+    body.cart-panel-open .cart-shift {
+      padding-right: 23.5rem;
+    }
+    body.cart-folded {
+      padding-bottom: 5rem;
+    }
+  }
+  @media (width < 80rem) {
+    body.cart-bar-space {
+      padding-bottom: 5.5rem;
+    }
+  }
+
+  /* A cart line grows in when added and shrinks away when removed. */
+  .cart-line {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition:
+      grid-template-rows 240ms var(--ease-drawer),
+      opacity 180ms ease;
+  }
+  .cart-line > * {
+    min-height: 0;
+    overflow: clip;
+  }
+  .cart-line-enter {
+    animation: cart-line-enter 320ms var(--ease-drawer);
+  }
+  .cart-line[data-leaving] {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    pointer-events: none;
+  }
+  @keyframes cart-line-enter {
+    from {
+      grid-template-rows: 0fr;
+      opacity: 0;
+    }
+  }
+  /* The line that was just added lights up for a moment. */
+  .cart-line-flash {
+    animation: cart-line-flash 1400ms ease-out forwards;
+  }
+  @keyframes cart-line-flash {
+    from {
+      background-color: color-mix(in oklab, var(--color-primary-500) 22%, transparent);
+    }
+    to {
+      background-color: transparent;
+    }
+  }
+  /* The cart icon hops when something is added. */
+  .cart-bump {
+    animation: cart-bump 480ms ease-out;
+  }
+  @keyframes cart-bump {
+    30% {
+      transform: scale(1.3) rotate(-8deg);
+    }
+    60% {
+      transform: scale(0.94);
+    }
+  }
+  .fade-up-in {
+    animation: fade-up-in 240ms ease-out;
+  }
+  @keyframes fade-up-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .modal::backdrop,
+    .modal[data-closing]::backdrop,
+    .modal-card,
+    .modal[data-closing] .modal-card,
+    .cart-line-enter,
+    .cart-bump,
+    .fade-up-in {
+      animation: none;
+    }
+    .cart-shift,
+    .cart-line {
+      transition: none;
+    }
   }
 }
 

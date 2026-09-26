@@ -132,12 +132,87 @@ as $$
   select restaurant.accepting_orders and public.is_within_opening_hours(restaurant.opening_hours)
 $$;
 
--- Owners mark dishes as sold out, and choose the order of their menu
--- (section 7). Items without a position come last.
+-- Owners mark dishes as sold out, choose the order of their menu (section 7)
+-- and the options customers can pick. Items without a position come last.
 alter table public.menu_items
   add column if not exists available boolean not null default true;
 alter table public.menu_items
   add column if not exists position integer;
+
+-- Choices the customer makes when adding a dish, such as a size, a sauce or
+-- extra cheese, as a list of groups:
+--   [{"id": "…", "name": "Extra's", "min": 0, "max": 3,
+--     "choices": [{"id": "…", "name": "Extra kaas", "price": 0.75}, …]}]
+-- The customer picks at least min and at most max choices from each group
+-- (max null: no limit). A choice's price is added to the dish's price.
+-- The ids are random UUIDs made by the portal; validate_order in orders.sql
+-- looks the chosen choices up by id.
+alter table public.menu_items
+  add column if not exists options jsonb not null default '[]'::jsonb;
+
+create or replace function public.valid_menu_options(options jsonb)
+returns boolean
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+  grp     jsonb;
+  choice  jsonb;
+  min_n   numeric;
+  max_n   numeric;
+  ids     text[] := '{}';
+begin
+  if jsonb_typeof(options) is distinct from 'array' or jsonb_array_length(options) > 20 then
+    return false;
+  end if;
+
+  for grp in select value from jsonb_array_elements(options) loop
+    -- Types first: -> on a non-object returns null, but jsonb_array_length
+    -- fails on anything but an array.
+    if jsonb_typeof(grp) <> 'object'
+       or jsonb_typeof(grp->'id') is distinct from 'string'
+       or jsonb_typeof(grp->'name') is distinct from 'string'
+       or jsonb_typeof(grp->'min') is distinct from 'number'
+       or coalesce(jsonb_typeof(grp->'max'), 'null') not in ('number', 'null')
+       or jsonb_typeof(grp->'choices') is distinct from 'array' then
+      return false;
+    end if;
+
+    min_n := (grp->>'min')::numeric;
+    max_n := (grp->>'max')::numeric;
+    if char_length(grp->>'id') not between 1 and 64
+       or char_length(btrim(grp->>'name')) not between 1 and 60
+       or jsonb_array_length(grp->'choices') not between 1 and 30
+       -- A group must be possible to fill in.
+       or min_n <> trunc(min_n) or min_n < 0 or min_n > jsonb_array_length(grp->'choices')
+       or (max_n is not null and (max_n <> trunc(max_n) or max_n < 1 or max_n < min_n)) then
+      return false;
+    end if;
+    ids := ids || (grp->>'id');
+
+    for choice in select value from jsonb_array_elements(grp->'choices') loop
+      if jsonb_typeof(choice) <> 'object'
+         or jsonb_typeof(choice->'id') is distinct from 'string'
+         or jsonb_typeof(choice->'name') is distinct from 'string'
+         or jsonb_typeof(choice->'price') is distinct from 'number' then
+        return false;
+      end if;
+      if char_length(choice->>'id') not between 1 and 64
+         or char_length(btrim(choice->>'name')) not between 1 and 60
+         or (choice->>'price')::numeric < 0
+         or (choice->>'price')::numeric >= 100
+         or (choice->>'price')::numeric <> round((choice->>'price')::numeric, 2) then
+        return false;
+      end if;
+      ids := ids || (choice->>'id');
+    end loop;
+  end loop;
+
+  -- Unique within the dish, so a chosen id points to exactly one choice.
+  return (select count(distinct id) = count(*) from unnest(ids) as id);
+end;
+$$;
 
 -- ---------------------------------------------------------------------------
 -- 3. Limits on what owners can enter
@@ -195,6 +270,11 @@ alter table public.menu_items drop constraint if exists menu_items_image_https;
 alter table public.menu_items add constraint menu_items_image_https check (
   image ~* '^https://'
 ) not valid;
+
+alter table public.menu_items drop constraint if exists menu_items_options_valid;
+alter table public.menu_items add constraint menu_items_options_valid check (
+  public.valid_menu_options(options)
+);
 
 -- ---------------------------------------------------------------------------
 -- 4. New restaurants from the portal

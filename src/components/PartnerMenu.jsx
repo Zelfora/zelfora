@@ -7,6 +7,7 @@ import MenuItemForm from './MenuItemForm';
 import SortableMenu from './SortableMenu';
 import Switch from './Switch';
 import { deleteStoredImage } from '../services/images';
+import { optionGroups } from '../services/menuOptions';
 
 const cardClass = 'rounded-card border border-border bg-surface/70 p-6 backdrop-blur-md';
 
@@ -116,6 +117,7 @@ function PartnerMenu({ restaurant }) {
         <MenuItemForm
           restaurantId={restaurant.id}
           categories={categories}
+          menu={menu}
           onSaved={(item) => setMenu((current) => [...current, item])}
         />
       </section>
@@ -152,6 +154,7 @@ function PartnerMenu({ restaurant }) {
               item={item}
               handle={handle}
               categories={categories}
+              menu={menu}
               onUpdated={replaceItem}
               onDeleted={removeItem}
             />
@@ -164,8 +167,9 @@ function PartnerMenu({ restaurant }) {
 
 // One dish in the owner's menu: edit it, mark it as sold out or delete it
 // right there in the list. handle is its drag handle for reordering.
-function MenuItemRow({ item, handle, categories, onUpdated, onDeleted }) {
+function MenuItemRow({ item, handle, categories, menu, onUpdated, onDeleted }) {
   const { t, formatPrice } = useTranslation();
+  const groups = optionGroups(item);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -210,6 +214,7 @@ function MenuItemRow({ item, handle, categories, onUpdated, onDeleted }) {
         <MenuItemForm
           item={item}
           categories={categories}
+          menu={menu}
           onSaved={(saved) => {
             onUpdated(saved);
             setEditing(false);
@@ -242,6 +247,11 @@ function MenuItemRow({ item, handle, categories, onUpdated, onDeleted }) {
         </p>
         {item.description && <p className="truncate text-sm text-text-muted">{item.description}</p>}
         <p className="text-sm font-semibold text-primary-300">{formatPrice(item.price)}</p>
+        {groups.length > 0 && (
+          <p className="truncate text-xs text-text-faint">
+            {t('partner.options.summary', { groups: groups.map((group) => group.name).join(', ') })}
+          </p>
+        )}
         <Switch
           checked={item.available}
           onChange={setAvailable}

@@ -8,6 +8,7 @@ import { useTranslation } from '../context/LanguageContext';
 import FormField from '../components/FormField';
 import { inputClass, primaryButtonClass, textareaClass } from '../components/formHelpers';
 import { orderErrorMessage } from '../services/orders';
+import { MAX_QUANTITY, formatOptions } from '../services/menuOptions';
 
 const EMPTY_DETAILS = { customer_name: '', phone: '', delivery_address: '', note: '' };
 
@@ -87,7 +88,7 @@ function Cart() {
       const { error: insertError } = await supabase.from('orders').insert({
         user_id: user.id,
         restaurant_id: restaurantId,
-        items: items.map(({ id, name, price, quantity }) => ({ menu_item_id: id, name, price, quantity })),
+        items: items.map(({ id, name, price, quantity, options }) => ({ menu_item_id: id, name, price, quantity, options })),
         total: subtotal + (deliveryFee ?? 0),
         customer_name: details.customer_name.trim(),
         phone: details.phone.trim(),
@@ -121,16 +122,17 @@ function Cart() {
       <div className="flex flex-col gap-3">
         {items.map((item) => (
           <div
-            key={item.id}
+            key={item.key}
             className="flex items-center gap-3 rounded-card border border-border bg-surface/70 p-3"
           >
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               <p className="font-medium text-text">{item.name}</p>
+              {item.options.length > 0 && <p className="text-sm text-text-muted">{formatOptions(item.options)}</p>}
               <p className="text-sm text-text-muted">{formatPrice(item.price)}</p>
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                onClick={() => updateQuantity(item.key, item.quantity - 1)}
                 aria-label={t('cart.decrease', { name: item.name })}
                 className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-text transition-colors hover:border-primary-500"
               >
@@ -138,15 +140,16 @@ function Cart() {
               </button>
               <span className="w-6 text-center text-text">{item.quantity}</span>
               <button
-                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                onClick={() => updateQuantity(item.key, item.quantity + 1)}
+                disabled={item.quantity >= MAX_QUANTITY}
                 aria-label={t('cart.increase', { name: item.name })}
-                className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-text transition-colors hover:border-primary-500"
+                className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-text transition-colors hover:border-primary-500 disabled:opacity-40"
               >
                 <Plus size={14} />
               </button>
             </div>
             <button
-              onClick={() => removeItem(item.id)}
+              onClick={() => removeItem(item.key)}
               className="text-text-faint transition-colors hover:text-danger"
               aria-label={t('cart.remove', { name: item.name })}
             >

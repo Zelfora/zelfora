@@ -1,18 +1,20 @@
 import { Plus } from 'lucide-react';
-import { useCart } from '../context/CartContext';
 import { useTranslation } from '../context/LanguageContext';
 import FoodImage from './FoodImage';
+import { optionGroups } from '../services/menuOptions';
 
-// orderable is false while the restaurant can't take orders: it's closed, or
-// an owner is previewing their unpublished restaurant.
-function MenuItemCard({ item, restaurant, orderable = true }) {
-  const { addItem } = useCart();
+// A dish on the restaurant page. Clicking anywhere on it opens the dish
+// dialog (MenuItemDialog) through onOpen: the button on the name stretches
+// over the whole card. orderable is false while the restaurant can't take
+// orders: it's closed, or an owner is previewing their unpublished restaurant.
+function MenuItemCard({ item, orderable = true, onOpen }) {
   const { t, formatPrice } = useTranslation();
   const soldOut = item.available === false;
+  const hasOptions = optionGroups(item).length > 0;
 
   return (
     <div
-      className={`flex items-center gap-4 rounded-card border border-border bg-surface/70 p-3 backdrop-blur-md transition-colors hover:border-primary-500/50 ${
+      className={`group relative flex items-center gap-4 rounded-card border border-border bg-surface/70 p-3 backdrop-blur-md transition-[border-color,box-shadow,translate,scale] duration-200 hover:-translate-y-0.5 hover:border-primary-500/50 hover:shadow-glow active:scale-[0.99] has-focus-visible:border-primary-400 has-focus-visible:ring-2 has-focus-visible:ring-primary-400 ${
         soldOut ? 'opacity-60' : ''
       }`}
     >
@@ -22,10 +24,24 @@ function MenuItemCard({ item, restaurant, orderable = true }) {
         iconSize={24}
         className="h-20 w-20 flex-shrink-0 rounded-[calc(var(--radius-card)-0.35rem)] object-cover"
       />
-      <div className="flex-1">
-        <h4 className="font-display font-semibold text-text">{item.name}</h4>
+      <div className="min-w-0 flex-1">
+        <h4 className="font-display font-semibold text-text">
+          <button
+            type="button"
+            onClick={() => onOpen(item)}
+            aria-haspopup="dialog"
+            className="cursor-pointer text-left outline-none after:absolute after:inset-0 after:rounded-card after:content-['']"
+          >
+            {item.name}
+          </button>
+        </h4>
         <p className="text-sm text-text-muted">{item.description}</p>
-        <p className="mt-1 font-semibold text-primary-300">{formatPrice(item.price)}</p>
+        <p className="mt-1 font-semibold text-primary-300">
+          {formatPrice(item.price)}
+          {hasOptions && !soldOut && (
+            <span className="ml-2 text-xs font-normal text-text-faint">{t('menuItem.customizable')}</span>
+          )}
+        </p>
       </div>
       {soldOut ? (
         <span className="flex-shrink-0 rounded-pill border border-border px-3 py-1 text-xs font-semibold text-text-muted">
@@ -33,13 +49,12 @@ function MenuItemCard({ item, restaurant, orderable = true }) {
         </span>
       ) : (
         orderable && (
-          <button
-            aria-label={t('menuItem.add', { name: item.name })}
-            onClick={() => addItem(restaurant, item)}
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-primary-500 to-accent-500 text-white shadow-glow transition-transform hover:scale-110"
+          <span
+            aria-hidden="true"
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-primary-500 to-accent-500 text-white shadow-glow transition-transform duration-200 group-hover:scale-110 group-active:scale-95"
           >
             <Plus size={18} />
-          </button>
+          </span>
         )
       )}
     </div>

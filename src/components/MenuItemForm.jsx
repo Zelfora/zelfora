@@ -3,28 +3,35 @@ import { supabase } from '../supabaseClient';
 import { useTranslation } from '../context/LanguageContext';
 import FormField from './FormField';
 import ImageInput from './ImageInput';
+import MenuOptionsEditor from './MenuOptionsEditor';
 import { inputClass, parseAmount, primaryButtonClass, secondaryButtonClass, textareaClass } from './formHelpers';
+import { parseEditableOptions, toEditableOptions } from './menuOptionsForm';
 import { commitImage, imageErrorKey, isValidImageValue } from '../services/images';
+import { optionGroups } from '../services/menuOptions';
 
 // Matches the menu_items_price_range constraint (> 0 and < 1000).
 const MIN_PRICE = 0.01;
 const MAX_PRICE = 999.99;
 
-const EMPTY_FORM = { name: '', price: '', category: '', description: '', image: '' };
+const EMPTY_FORM = { name: '', price: '', category: '', description: '', image: '', options: [] };
 
 // Adds a dish to the owner's restaurant, or edits one when item is given.
 // RLS only accepts changes to items of a restaurant the signed-in user owns.
-function MenuItemForm({ restaurantId, item = null, categories, onSaved, onCancel }) {
+// menu is the whole menu, to copy options from another dish.
+function MenuItemForm({ restaurantId, item = null, categories, menu, onSaved, onCancel }) {
   const { t, locale, formatPrice } = useTranslation();
   const editing = item !== null;
+  const formatAmount = (amount) =>
+    new Intl.NumberFormat(locale, { minimumFractionDigits: 2, useGrouping: false }).format(amount);
   const [form, setForm] = useState(() =>
     editing
       ? {
           name: item.name,
-          price: new Intl.NumberFormat(locale, { minimumFractionDigits: 2, useGrouping: false }).format(item.price),
+          price: formatAmount(item.price),
           category: item.category ?? '',
           description: item.description ?? '',
           image: item.image ?? '',
+          options: toEditableOptions(optionGroups(item), formatAmount),
         }
       : EMPTY_FORM
   );
@@ -41,6 +48,12 @@ function MenuItemForm({ restaurantId, item = null, categories, onSaved, onCancel
   function setImage(image) {
     setForm((current) => ({ ...current, image }));
   }
+
+  function setOptions(options) {
+    setForm((current) => ({ ...current, options }));
+  }
+
+  const copySources = menu.filter((dish) => dish.id !== item?.id && optionGroups(dish).length > 0);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -67,8 +80,13 @@ function MenuItemForm({ restaurantId, item = null, categories, onSaved, onCancel
       setError(t('imageError.invalid_url'));
       return;
     }
+    const { options, error: optionsError, vars } = parseEditableOptions(form.options);
+    if (optionsError) {
+      setError(t(optionsError, vars));
+      return;
+    }
 
-    const fields = { name, price, category, description: form.description.trim() || null };
+    const fields = { name, price, category, description: form.description.trim() || null, options };
 
     setSubmitting(true);
     try {
@@ -162,6 +180,15 @@ function MenuItemForm({ restaurantId, item = null, categories, onSaved, onCancel
 
       <FormField label={t('partner.field.image')} optional group className="sm:col-span-2">
         <ImageInput kind="menuItem" value={form.image} onChange={setImage} />
+      </FormField>
+
+      <FormField label={t('partner.field.options')} optional group className="sm:col-span-2">
+        <MenuOptionsEditor
+          value={form.options}
+          onChange={setOptions}
+          copySources={copySources}
+          formatAmount={formatAmount}
+        />
       </FormField>
 
       {error && <p className="text-sm text-danger sm:col-span-2">{error}</p>}

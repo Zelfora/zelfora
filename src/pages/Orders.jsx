@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import { useTranslation } from '../context/LanguageContext';
 import OrderStatusBadge from '../components/OrderStatusBadge';
 import { deliveredSameDay, orderNumber, subscribeToOrders } from '../services/orders';
+import { formatOptions } from '../services/menuOptions';
 
 const DATE_AND_TIME = { dateStyle: 'medium', timeStyle: 'short' };
 
@@ -68,9 +69,11 @@ function Orders() {
               </p>
             )}
             <ul className="mt-2 text-sm text-text-muted">
-              {order.items.map((item) => (
-                <li key={item.menu_item_id}>
+              {/* The same dish can be on an order twice, with other options. */}
+              {order.items.map((item, index) => (
+                <li key={index}>
                   {item.quantity}x {item.name}
+                  {item.options?.length > 0 && <span className="text-text-faint"> ({formatOptions(item.options)})</span>}
                 </li>
               ))}
             </ul>
