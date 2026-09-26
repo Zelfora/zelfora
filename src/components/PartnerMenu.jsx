@@ -1,18 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, Pencil, Trash2 } from 'lucide-react';
+import { Check, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useTranslation } from '../context/LanguageContext';
 import FoodImage from './FoodImage';
 import MenuItemForm from './MenuItemForm';
+import SortableMenu from './SortableMenu';
 import Switch from './Switch';
 import { deleteStoredImage } from '../services/images';
 
 const cardClass = 'rounded-card border border-border bg-surface/70 p-6 backdrop-blur-md';
-
-const arrowButtonClass =
-  'flex h-6 w-6 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-hover hover:text-primary-300 disabled:pointer-events-none disabled:opacity-30';
-
-const groupOf = (item) => item.category ?? '';
 
 // The menu in the owner's order; items they never moved come last.
 async function fetchMenu(restaurantId) {
@@ -26,15 +22,17 @@ async function fetchMenu(restaurantId) {
   return data;
 }
 
-// The portal's Menu tab: add dishes, and edit, reorder, mark as sold out or
-// delete them. Customers see the menu in the order set here.
+// The portal's Menu tab: add dishes, and edit, reorder (drag and drop), mark
+// as sold out or delete them. Customers see the menu in the order set here.
 function PartnerMenu({ restaurant }) {
   const { t } = useTranslation();
   const [menu, setMenu] = useState([]);
   const [status, setStatus] = useState('loading'); // 'loading' | 'ready' | 'error'
   const [orderError, setOrderError] = useState('');
+  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved'
   // Reorders are saved one after another, so a quick series of moves arrives in order.
   const saveQueue = useRef(Promise.resolve());
+  const pendingSaves = useRef(0);
 
   useEffect(() => {
     let ignore = false;
@@ -55,6 +53,12 @@ function PartnerMenu({ restaurant }) {
     };
   }, [restaurant.id]);
 
+  useEffect(() => {
+    if (saveStatus !== 'saved') return;
+    const timer = setTimeout(() => setSaveStatus('idle'), 2000);
+    return () => clearTimeout(timer);
+  }, [saveStatus]);
+
   function replaceItem(saved) {
     setMenu((current) => current.map((item) => (item.id === saved.id ? saved : item)));
   }
@@ -63,46 +67,46 @@ function PartnerMenu({ restaurant }) {
     setMenu((current) => current.filter((item) => item.id !== id));
   }
 
-  // Categories in the order of their first dish. Items added by an admin may
-  // have no category; they're grouped under "Other".
-  const groups = [...new Set(menu.map(groupOf))];
-  const categories = groups.filter(Boolean);
-  // The menu as customers see it: category by category.
-  const ordered = groups.flatMap((group) => menu.filter((item) => groupOf(item) === group));
+  const categories = [...new Set(menu.map((item) => item.category).filter(Boolean))];
 
-  function saveOrder(next) {
+  // items is the whole menu in its new order. moved = { id, category } when a
+  // dish was dragged into another category.
+  function saveOrder(items, moved) {
     setOrderError('');
-    setMenu(next.map((item, index) => ({ ...item, position: index })));
-    const ids = next.map((item) => item.id);
+    setMenu(items.map((item, index) => ({ ...item, position: index })));
+    const ids = items.map((item) => item.id);
+    pendingSaves.current += 1;
+    setSaveStatus('saving');
     saveQueue.current = saveQueue.current.then(async () => {
-      const { data, error } = await supabase.rpc('reorder_menu_items', { item_ids: ids });
-      if (error || data !== ids.length) {
-        console.error(error ?? 'Not every menu item was reordered');
+      let saved = true;
+      try {
+        if (moved) {
+          // .single() also fails when RLS silently matched no row.
+          const { error } = await supabase
+            .from('menu_items')
+            .update({ category: moved.category })
+            .eq('id', moved.id)
+            .select('id')
+            .single();
+          if (error) throw error;
+        }
+        const { data, error } = await supabase.rpc('reorder_menu_items', { item_ids: ids });
+        if (error) throw error;
+        if (data !== ids.length) throw new Error('Not every menu item was reordered');
+      } catch (error) {
+        saved = false;
+        console.error(error);
         setOrderError(t('partner.menu.reorderFailed'));
-        // Show the order that was actually saved.
+        // Show the menu as it was actually saved.
         try {
           setMenu(await fetchMenu(restaurant.id));
         } catch (fetchError) {
           console.error(fetchError);
         }
       }
+      pendingSaves.current -= 1;
+      if (pendingSaves.current === 0) setSaveStatus(saved ? 'saved' : 'idle');
     });
-  }
-
-  function moveItem(item, direction) {
-    const siblings = ordered.filter((other) => groupOf(other) === groupOf(item));
-    const target = siblings[siblings.findIndex((other) => other.id === item.id) + direction];
-    if (!target) return;
-    saveOrder(ordered.map((other) => (other.id === item.id ? target : other.id === target.id ? item : other)));
-  }
-
-  function moveGroup(group, direction) {
-    const index = groups.indexOf(group);
-    const target = index + direction;
-    if (target < 0 || target >= groups.length) return;
-    const nextGroups = [...groups];
-    [nextGroups[index], nextGroups[target]] = [nextGroups[target], nextGroups[index]];
-    saveOrder(nextGroups.flatMap((g) => ordered.filter((item) => groupOf(item) === g)));
   }
 
   return (
@@ -117,9 +121,20 @@ function PartnerMenu({ restaurant }) {
       </section>
 
       <section className={cardClass}>
-        <h2 className="mb-1 font-display text-lg font-semibold text-text">
-          {t('partner.menu.title')} <span className="font-normal text-text-faint">({menu.length})</span>
-        </h2>
+        <div className="mb-1 flex items-baseline justify-between gap-3">
+          <h2 className="font-display text-lg font-semibold text-text">
+            {t('partner.menu.title')} <span className="font-normal text-text-faint">({menu.length})</span>
+          </h2>
+          <p role="status" className="text-xs text-text-faint">
+            {saveStatus === 'saving' && t('partner.menu.saving')}
+            {saveStatus === 'saved' && (
+              <span className="drag-fade-in flex items-center gap-1 text-accent-400">
+                <Check size={14} />
+                {t('partner.menu.saved')}
+              </span>
+            )}
+          </p>
+        </div>
         <p className="mb-4 text-sm text-text-muted">{t('partner.menu.intro')}</p>
 
         {status === 'loading' && <p className="text-sm text-text-muted">{t('common.loading')}</p>}
@@ -129,65 +144,27 @@ function PartnerMenu({ restaurant }) {
         )}
         {orderError && <p className="mb-4 text-sm text-danger">{orderError}</p>}
 
-        <div className="space-y-6">
-          {groups.map((group, groupIndex) => {
-            const groupName = group || t('partner.menu.uncategorized');
-            const items = ordered.filter((item) => groupOf(item) === group);
-            return (
-              <div key={group}>
-                <div className="mb-1 flex items-center justify-between gap-3">
-                  <h3 className="font-display font-semibold text-primary-300">{groupName}</h3>
-                  {groups.length > 1 && (
-                    <div className="flex gap-1">
-                      <button
-                        type="button"
-                        disabled={groupIndex === 0}
-                        onClick={() => moveGroup(group, -1)}
-                        aria-label={t('partner.menu.moveCategoryUp', { name: groupName })}
-                        title={t('partner.menu.moveCategoryUp', { name: groupName })}
-                        className={arrowButtonClass}
-                      >
-                        <ChevronUp size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={groupIndex === groups.length - 1}
-                        onClick={() => moveGroup(group, 1)}
-                        aria-label={t('partner.menu.moveCategoryDown', { name: groupName })}
-                        title={t('partner.menu.moveCategoryDown', { name: groupName })}
-                        className={arrowButtonClass}
-                      >
-                        <ChevronDown size={16} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <ul className="divide-y divide-border">
-                  {items.map((item, index) => (
-                    <MenuItemRow
-                      key={item.id}
-                      item={item}
-                      categories={categories}
-                      canMoveUp={index > 0}
-                      canMoveDown={index < items.length - 1}
-                      onMove={(direction) => moveItem(item, direction)}
-                      onUpdated={replaceItem}
-                      onDeleted={removeItem}
-                    />
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
-        </div>
+        <SortableMenu
+          menu={menu}
+          onReorder={saveOrder}
+          renderItem={(item, handle) => (
+            <MenuItemRow
+              item={item}
+              handle={handle}
+              categories={categories}
+              onUpdated={replaceItem}
+              onDeleted={removeItem}
+            />
+          )}
+        />
       </section>
     </div>
   );
 }
 
-// One dish in the owner's menu: reorder, edit, mark as sold out or delete it
-// right there in the list.
-function MenuItemRow({ item, categories, canMoveUp, canMoveDown, onMove, onUpdated, onDeleted }) {
+// One dish in the owner's menu: edit it, mark it as sold out or delete it
+// right there in the list. handle is its drag handle for reordering.
+function MenuItemRow({ item, handle, categories, onUpdated, onDeleted }) {
   const { t, formatPrice } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -229,46 +206,23 @@ function MenuItemRow({ item, categories, canMoveUp, canMoveDown, onMove, onUpdat
 
   if (editing) {
     return (
-      <li className="py-4">
-        <div className="rounded-card border border-primary-500/40 bg-bg/40 p-4">
-          <MenuItemForm
-            item={item}
-            categories={categories}
-            onSaved={(saved) => {
-              onUpdated(saved);
-              setEditing(false);
-            }}
-            onCancel={() => setEditing(false)}
-          />
-        </div>
-      </li>
+      <div className="rounded-card border border-primary-500/40 bg-bg/40 p-4">
+        <MenuItemForm
+          item={item}
+          categories={categories}
+          onSaved={(saved) => {
+            onUpdated(saved);
+            setEditing(false);
+          }}
+          onCancel={() => setEditing(false)}
+        />
+      </div>
     );
   }
 
   return (
-    <li className="flex items-center gap-3 py-3">
-      <div className="flex flex-shrink-0 flex-col">
-        <button
-          type="button"
-          disabled={!canMoveUp}
-          onClick={() => onMove(-1)}
-          aria-label={t('partner.menu.moveUp', { name: item.name })}
-          title={t('partner.menu.moveUp', { name: item.name })}
-          className={arrowButtonClass}
-        >
-          <ChevronUp size={16} />
-        </button>
-        <button
-          type="button"
-          disabled={!canMoveDown}
-          onClick={() => onMove(1)}
-          aria-label={t('partner.menu.moveDown', { name: item.name })}
-          title={t('partner.menu.moveDown', { name: item.name })}
-          className={arrowButtonClass}
-        >
-          <ChevronDown size={16} />
-        </button>
-      </div>
+    <div className="flex items-center gap-2 rounded-card border border-border/70 bg-bg/40 py-2 pr-2 pl-1 sm:gap-3">
+      {handle}
       <FoodImage
         src={item.image}
         alt={item.name}
@@ -319,7 +273,7 @@ function MenuItemRow({ item, categories, canMoveUp, canMoveDown, onMove, onUpdat
           <Trash2 size={16} />
         </button>
       </div>
-    </li>
+    </div>
   );
 }
 

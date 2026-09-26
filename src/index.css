@@ -103,4 +103,52 @@
   .animate-glow-pulse {
     animation: pulse-glow 2.5s ease-in-out infinite;
   }
+
+  /* Drag and drop (SortableMenu): the floating copy lifts when picked up and
+     settles when dropped (.drag-dropping is set on the overlay by dnd-kit). */
+  @keyframes drag-lift {
+    from {
+      transform: scale(1);
+    }
+    to {
+      transform: scale(1.02);
+    }
+  }
+  @keyframes drag-settle {
+    from {
+      transform: scale(1.02);
+    }
+    to {
+      transform: scale(1);
+    }
+  }
+  @keyframes drag-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  .drag-lift {
+    animation: drag-lift 150ms ease-out forwards;
+  }
+  .drag-dropping .drag-lift {
+    animation: drag-settle 220ms ease-out forwards;
+  }
+  .drag-fade-in {
+    animation: drag-fade-in 200ms ease-out;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .drag-lift,
+    .drag-dropping .drag-lift,
+    .drag-fade-in {
+      animation: none;
+    }
+  }
+  /* Keep the grabbing hand while dragging, also over buttons and inputs. */
+  .is-dragging,
+  .is-dragging * {
+    cursor: grabbing !important;
+  }
 }
