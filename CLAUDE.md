@@ -19,7 +19,7 @@ There is no test suite.
 
 The app needs a `.env` file with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (see `.env.example`). Without them, `src/supabaseClient.js` throws at startup.
 
-The site is hosted on Vercel. `vercel.json` rewrites every path that isn't a real file to `index.html`, so a direct visit or a reload on a route such as `/partner` reaches React Router instead of a 404.
+The site is hosted on Vercel. `vercel.json` rewrites every path that isn't a real file to `index.html`, so a direct visit or a reload on a route such as `/partner` reaches React Router instead of a 404. It also sends `Cache-Control: no-store` for everything outside `/assets/`: Chrome and Edge load a duplicated tab (like Back and Forward) from their cache without checking with the server, so a stored page could be an outdated 404 or point to JS files from an earlier deployment that no longer exist. The hashed files in `/assets/` never change, so they are cached for a year.
 
 ## Architecture
 
