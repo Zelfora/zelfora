@@ -1,0 +1,6 @@
+{
+  "permissions": {
+    "allow": ["mcp__supabase__*"],
+    "ask": ["mcp__supabase-write__*"]
+  }
+}

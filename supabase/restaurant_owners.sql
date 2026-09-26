@@ -106,14 +106,16 @@ create trigger prepare_new_restaurant
 
 -- ---------------------------------------------------------------------------
 -- 4. Row Level Security
---    These replace the "Restaurants are public" and "Menu items are public"
---    policies that used to live in auth_hardening.sql.
+--    These replace the old using (true) read policies, which existed as
+--    "... are public" (from auth_hardening.sql) and "... are publicly
+--    readable" (from the dashboard). Both names are dropped here.
 -- ---------------------------------------------------------------------------
 
 grant insert on public.restaurants, public.menu_items to authenticated;
 
 -- Everyone sees published restaurants; owners also see their own.
 drop policy if exists "Restaurants are public" on public.restaurants;
+drop policy if exists "Restaurants are publicly readable" on public.restaurants;
 drop policy if exists "Published restaurants are public" on public.restaurants;
 create policy "Published restaurants are public"
   on public.restaurants for select
@@ -121,6 +123,7 @@ create policy "Published restaurants are public"
   using (published or owner_id = (select auth.uid()));
 
 drop policy if exists "Menu items are public" on public.menu_items;
+drop policy if exists "Menu items are publicly readable" on public.menu_items;
 drop policy if exists "Menu items of published restaurants are public" on public.menu_items;
 create policy "Menu items of published restaurants are public"
   on public.menu_items for select

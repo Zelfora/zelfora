@@ -14,8 +14,9 @@
 --   - profiles RLS, set up in the dashboard: RLS enabled, with policies
 --     "Users can view their own profile" (SELECT) and
 --     "Users can update their own profile" (UPDATE)
---   - Whatever creates a profiles row on signup (orders.user_id references
---     profiles.id, so one must exist); it lives only in the dashboard
+--   - The trigger on_auth_user_created on auth.users, which calls
+--     public.handle_new_user() (SECURITY DEFINER) to insert a profiles row
+--     (id, email) on signup; it lives only in the dashboard
 --   - The element type of restaurants.tags (the export shows just ARRAY)
 
 -- WARNING: This schema is for context only and is not meant to be run.

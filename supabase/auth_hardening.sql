@@ -18,6 +18,9 @@ alter table public.orders      enable row level security;
 
 -- Orders: signed-in users can only see and create their own.
 -- No update/delete policies, so those are denied.
+-- The first two drops remove older duplicates made in the dashboard.
+drop policy if exists "Users can view their own orders" on public.orders;
+drop policy if exists "Users can create their own orders" on public.orders;
 drop policy if exists "Users read own orders" on public.orders;
 create policy "Users read own orders"
   on public.orders for select
