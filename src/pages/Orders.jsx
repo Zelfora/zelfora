@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
 import { useTranslation } from '../context/LanguageContext';
 import OrderStatusBadge from '../components/OrderStatusBadge';
+import PageMessage from '../components/PageMessage';
 import { deliveredSameDay, orderNumber, subscribeToOrders } from '../services/orders';
 import { formatOptions } from '../services/menuOptions';
 
@@ -12,17 +13,23 @@ function Orders() {
   const { user } = useAuth();
   const { t, formatPrice, formatDate } = useTranslation();
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState('loading'); // 'loading' | 'ready' | 'error'
 
   useEffect(() => {
     async function loadOrders() {
+      // Filter on user_id: restaurant owners can also read their restaurant's orders.
       const { data, error } = await supabase
         .from('orders')
         .select('*, restaurants(name)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
-      if (!error) setOrders(data);
-      setLoading(false);
+      if (error) {
+        console.error(error);
+        setStatus('error');
+        return;
+      }
+      setOrders(data);
+      setStatus('ready');
     }
     loadOrders();
   }, [user.id]);
@@ -36,16 +43,16 @@ function Orders() {
     [user.id]
   );
 
-  if (loading) {
-    return <main className="px-4 py-16 text-center text-text-muted md:px-8">{t('orders.loading')}</main>;
+  if (status === 'loading') {
+    return <PageMessage>{t('orders.loading')}</PageMessage>;
+  }
+
+  if (status === 'error') {
+    return <PageMessage tone="error">{t('orders.loadFailed')}</PageMessage>;
   }
 
   if (orders.length === 0) {
-    return (
-      <main className="px-4 py-16 text-center text-text-muted md:px-8">
-        {t('orders.empty')}
-      </main>
-    );
+    return <PageMessage>{t('orders.empty')}</PageMessage>;
   }
 
   return (

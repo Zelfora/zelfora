@@ -114,9 +114,10 @@ export async function commitImage({ value, previous = null, kind, save }) {
 // a leftover file only costs storage, so failures are logged, not thrown.
 export async function deleteStoredImage(url) {
   if (!isStoredImage(url)) return;
-  const path = decodeURI(url.slice(PUBLIC_PREFIX.length));
+  const path = url.slice(PUBLIC_PREFIX.length);
   try {
-    const { error } = await bucket.remove([path]);
+    // decodeURI throws on a malformed escape, as a pasted link can have.
+    const { error } = await bucket.remove([decodeURI(path)]);
     if (error) throw error;
   } catch (err) {
     console.warn('Could not delete image', path, err);

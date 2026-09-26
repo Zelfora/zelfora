@@ -2,9 +2,17 @@ import { useId, useRef, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useTranslation } from '../context/LanguageContext';
 import FormField from './FormField';
+import FormMessage from './FormMessage';
 import ImageInput from './ImageInput';
 import MenuOptionsEditor from './MenuOptionsEditor';
-import { inputClass, parseAmount, primaryButtonClass, secondaryButtonClass, textareaClass } from './formHelpers';
+import {
+  formatAmount,
+  inputClass,
+  parseAmount,
+  primaryButtonClass,
+  secondaryButtonClass,
+  textareaClass,
+} from './formHelpers';
 import { parseEditableOptions, toEditableOptions } from './menuOptionsForm';
 import { commitImage, imageErrorKey, isValidImageValue } from '../services/images';
 import { optionGroups } from '../services/menuOptions';
@@ -21,17 +29,16 @@ const EMPTY_FORM = { name: '', price: '', category: '', description: '', image: 
 function MenuItemForm({ restaurantId, item = null, categories, menu, onSaved, onCancel }) {
   const { t, locale, formatPrice } = useTranslation();
   const editing = item !== null;
-  const formatAmount = (amount) =>
-    new Intl.NumberFormat(locale, { minimumFractionDigits: 2, useGrouping: false }).format(amount);
+  const formatLocalAmount = (amount) => formatAmount(amount, locale);
   const [form, setForm] = useState(() =>
     editing
       ? {
           name: item.name,
-          price: formatAmount(item.price),
+          price: formatLocalAmount(item.price),
           category: item.category ?? '',
           description: item.description ?? '',
           image: item.image ?? '',
-          options: toEditableOptions(optionGroups(item), formatAmount),
+          options: toEditableOptions(optionGroups(item), formatLocalAmount),
         }
       : EMPTY_FORM
   );
@@ -187,16 +194,11 @@ function MenuItemForm({ restaurantId, item = null, categories, menu, onSaved, on
           value={form.options}
           onChange={setOptions}
           copySources={copySources}
-          formatAmount={formatAmount}
+          formatAmount={formatLocalAmount}
         />
       </FormField>
 
-      {error && <p className="text-sm text-danger sm:col-span-2">{error}</p>}
-      {info && (
-        <p role="status" className="text-sm text-accent-400 sm:col-span-2">
-          {info}
-        </p>
-      )}
+      <FormMessage error={error} info={info} className="sm:col-span-2" />
 
       <div className="mt-2 flex flex-wrap gap-3 sm:col-span-2">
         <button type="submit" disabled={submitting} className={`flex-1 ${primaryButtonClass}`}>

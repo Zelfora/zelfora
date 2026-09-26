@@ -1,24 +1,16 @@
-import { supabase } from '../supabaseClient';
 import { useTranslation } from '../context/LanguageContext';
 import OpeningHoursForm from './OpeningHoursForm';
 import RestaurantForm from './RestaurantForm';
 import SingleImageForm from './SingleImageForm';
-
-const cardClass = 'rounded-card border border-border bg-surface/70 p-6 backdrop-blur-md';
+import { cardClass } from './formHelpers';
+import { updateRestaurant } from '../services/restaurants';
 
 // The portal's Settings tab: the restaurant's details, opening hours and photo.
 function PartnerSettings({ restaurant, onRestaurantChange }) {
   const { t } = useTranslation();
 
   async function saveRestaurantImage(image) {
-    const { data, error } = await supabase
-      .from('restaurants')
-      .update({ image })
-      .eq('id', restaurant.id)
-      .select('*, is_open')
-      .single();
-    if (error) throw error;
-    onRestaurantChange(data);
+    onRestaurantChange(await updateRestaurant(restaurant.id, { image }));
   }
 
   return (

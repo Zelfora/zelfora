@@ -3,25 +3,14 @@ import { Check, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useTranslation } from '../context/LanguageContext';
 import FoodImage from './FoodImage';
+import FormMessage from './FormMessage';
 import MenuItemForm from './MenuItemForm';
 import SortableMenu from './SortableMenu';
 import Switch from './Switch';
+import { cardClass } from './formHelpers';
 import { deleteStoredImage } from '../services/images';
 import { optionGroups } from '../services/menuOptions';
-
-const cardClass = 'rounded-card border border-border bg-surface/70 p-6 backdrop-blur-md';
-
-// The menu in the owner's order; items they never moved come last.
-async function fetchMenu(restaurantId) {
-  const { data, error } = await supabase
-    .from('menu_items')
-    .select('*')
-    .eq('restaurant_id', restaurantId)
-    .order('position', { nullsFirst: false })
-    .order('created_at');
-  if (error) throw error;
-  return data;
-}
+import { fetchMenu } from '../services/restaurants';
 
 // The portal's Menu tab: add dishes, and edit, reorder (drag and drop), mark
 // as sold out or delete them. Customers see the menu in the order set here.
@@ -74,7 +63,8 @@ function PartnerMenu({ restaurant }) {
   // dish was dragged into another category.
   function saveOrder(items, moved) {
     setOrderError('');
-    setMenu(items.map((item, index) => ({ ...item, position: index })));
+    // Numbered from 1, like reorder_menu_items does.
+    setMenu(items.map((item, index) => ({ ...item, position: index + 1 })));
     const ids = items.map((item) => item.id);
     pendingSaves.current += 1;
     setSaveStatus('saving');
@@ -144,7 +134,7 @@ function PartnerMenu({ restaurant }) {
         {status === 'ready' && menu.length === 0 && (
           <p className="text-sm text-text-muted">{t('partner.menu.empty')}</p>
         )}
-        {orderError && <p className="mb-4 text-sm text-danger">{orderError}</p>}
+        <FormMessage error={orderError} className="mb-4" />
 
         <SortableMenu
           menu={menu}
@@ -259,7 +249,7 @@ function MenuItemRow({ item, handle, categories, menu, onUpdated, onDeleted }) {
           label={t('partner.menu.available')}
           className="mt-1.5"
         />
-        {error && <p className="text-sm text-danger">{error}</p>}
+        <FormMessage error={error} />
       </div>
       <div className="flex flex-shrink-0 items-center gap-1">
         <button

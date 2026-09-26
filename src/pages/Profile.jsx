@@ -2,9 +2,13 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authErrorMessage, useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
-import { inputClass, primaryButtonClass } from '../components/formHelpers';
+import { cardClass, inputClass, primaryButtonClass } from '../components/formHelpers';
 import Avatar from '../components/Avatar';
+import FormMessage from '../components/FormMessage';
 import SingleImageForm from '../components/SingleImageForm';
+
+// Each button adds its own hover color.
+const accountButtonClass = 'rounded-pill border border-border px-4 py-2 text-sm font-medium text-text transition-colors';
 
 function Profile() {
   const { user, profile, signOut, changePassword, updateProfile } = useAuth();
@@ -56,7 +60,7 @@ function Profile() {
         </div>
       </div>
 
-      <section className="rounded-card border border-border bg-surface/70 p-6 backdrop-blur-md">
+      <section className={cardClass}>
         <h2 className="mb-4 font-display text-lg font-semibold text-text">{t('profile.account')}</h2>
         <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
           <dt className="text-text-muted">{t('profile.email')}</dt>
@@ -65,28 +69,19 @@ function Profile() {
           <dd className="text-text">{formatDate(user.created_at, { dateStyle: 'long' })}</dd>
         </dl>
         <div className="mt-5 flex flex-wrap gap-3">
-          <Link
-            to="/orders"
-            className="rounded-pill border border-border px-4 py-2 text-sm font-medium text-text transition-colors hover:border-primary-500"
-          >
+          <Link to="/orders" className={`${accountButtonClass} hover:border-primary-500`}>
             {t('profile.viewOrders')}
           </Link>
-          <Link
-            to="/partner"
-            className="rounded-pill border border-border px-4 py-2 text-sm font-medium text-text transition-colors hover:border-primary-500"
-          >
+          <Link to="/partner" className={`${accountButtonClass} hover:border-primary-500`}>
             {t('profile.partnerPortal')}
           </Link>
-          <button
-            onClick={handleSignOut}
-            className="rounded-pill border border-border px-4 py-2 text-sm font-medium text-text transition-colors hover:border-danger hover:text-danger"
-          >
+          <button onClick={handleSignOut} className={`${accountButtonClass} hover:border-danger hover:text-danger`}>
             {t('nav.signOut')}
           </button>
         </div>
       </section>
 
-      <section className="rounded-card border border-border bg-surface/70 p-6 backdrop-blur-md">
+      <section className={cardClass}>
         <h2 className="mb-4 font-display text-lg font-semibold text-text">{t('profile.photo')}</h2>
         <SingleImageForm
           kind="avatar"
@@ -97,7 +92,7 @@ function Profile() {
         />
       </section>
 
-      <section className="rounded-card border border-border bg-surface/70 p-6 backdrop-blur-md">
+      <section className={cardClass}>
         <h2 className="mb-4 font-display text-lg font-semibold text-text">{t('profile.changePassword')}</h2>
         <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
           {/* Hidden username field lets password managers update the right entry. */}
@@ -106,6 +101,7 @@ function Profile() {
             type="password"
             required
             autoComplete="current-password"
+            aria-label={t('password.current')}
             placeholder={t('password.current')}
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
@@ -116,6 +112,7 @@ function Profile() {
             required
             minLength={8}
             autoComplete="new-password"
+            aria-label={t('password.new')}
             placeholder={t('password.new')}
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
@@ -126,14 +123,14 @@ function Profile() {
             required
             minLength={8}
             autoComplete="new-password"
+            aria-label={t('password.repeat')}
             placeholder={t('password.repeat')}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             className={inputClass}
           />
 
-          {error && <p className="text-sm text-danger">{error}</p>}
-          {info && <p className="text-sm text-accent-400">{info}</p>}
+          <FormMessage error={error} info={info} />
 
           <button
             type="submit"

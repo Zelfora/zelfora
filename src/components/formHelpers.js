@@ -1,4 +1,11 @@
-// Shared styling and parsing for forms, so every form looks and behaves the same.
+// Shared styling and parsing for cards and forms, so every page looks and
+// behaves the same.
+
+// A section of a page, such as a form or a list, on a translucent card.
+export const cardClass = 'rounded-card border border-border bg-surface/70 p-6 backdrop-blur-md';
+
+// A warning in the flow of a page, such as "this restaurant is closed".
+export const noticeClass = 'rounded-card border border-warn-400/50 bg-warn-400/10 p-4 text-sm text-text';
 
 const fieldClass =
   'border border-border bg-bg px-4 py-2.5 text-text placeholder:text-text-faint outline-none focus:border-primary-500 focus:shadow-glow';
@@ -18,4 +25,11 @@ export function parseAmount(value) {
   const normalized = value.trim().replace(',', '.');
   if (!/^\d+(\.\d{1,2})?$/.test(normalized)) return NaN;
   return Number(normalized);
+}
+
+// An amount as the owner types it back into a form, such as "12,50" in Dutch:
+// two decimals, no currency sign and no thousands separator, so parseAmount
+// reads it again.
+export function formatAmount(amount, locale) {
+  return new Intl.NumberFormat(locale, { minimumFractionDigits: 2, useGrouping: false }).format(amount);
 }

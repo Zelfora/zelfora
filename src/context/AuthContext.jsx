@@ -6,6 +6,10 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Whether this session came from a password recovery link, which is the
+  // only way ResetPassword lets someone set a password without the current
+  // one. Supabase announces it with PASSWORD_RECOVERY right after loading.
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -13,8 +17,10 @@ export function AuthProvider({ children }) {
       setLoading(false);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
+      if (event === 'SIGNED_OUT') setPasswordRecovery(false);
     });
 
     return () => listener.subscription.unsubscribe();
@@ -116,6 +122,7 @@ export function AuthProvider({ children }) {
   async function updatePassword(password) {
     const { error } = await supabase.auth.updateUser({ password });
     if (error) throw error;
+    setPasswordRecovery(false);
   }
 
   // Re-verifies the current password before changing it, so an unattended
@@ -140,6 +147,7 @@ export function AuthProvider({ children }) {
     profile,
     ownsRestaurant,
     loading,
+    passwordRecovery,
     updateProfile,
     markRestaurantOwned,
     signUp,

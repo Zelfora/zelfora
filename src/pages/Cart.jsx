@@ -6,9 +6,12 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
 import { useTranslation } from '../context/LanguageContext';
 import FormField from '../components/FormField';
-import { inputClass, primaryButtonClass, textareaClass } from '../components/formHelpers';
+import FormMessage from '../components/FormMessage';
+import PageMessage from '../components/PageMessage';
+import { cardClass, inputClass, noticeClass, primaryButtonClass, textareaClass } from '../components/formHelpers';
 import { orderErrorMessage } from '../services/orders';
 import { MAX_QUANTITY, formatOptions } from '../services/menuOptions';
+import { closedNoticeKey } from '../services/restaurants';
 
 const EMPTY_DETAILS = { customer_name: '', phone: '', delivery_address: '', note: '' };
 
@@ -107,11 +110,7 @@ function Cart() {
   }
 
   if (items.length === 0) {
-    return (
-      <main className="mx-auto max-w-2xl px-4 py-16 text-center md:px-8">
-        <p className="text-text-muted">{t('cart.empty')}</p>
-      </main>
-    );
+    return <PageMessage>{t('cart.empty')}</PageMessage>;
   }
 
   return (
@@ -174,10 +173,7 @@ function Cart() {
         </div>
       </dl>
 
-      <form
-        onSubmit={handlePlaceOrder}
-        className="mt-8 grid grid-cols-1 gap-4 rounded-card border border-border bg-surface/70 p-6 backdrop-blur-md sm:grid-cols-2"
-      >
+      <form onSubmit={handlePlaceOrder} className={`mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 ${cardClass}`}>
         <h2 className="font-display text-lg font-semibold text-text sm:col-span-2">{t('cart.detailsTitle')}</h2>
 
         <FormField label={t('cart.field.name')}>
@@ -230,12 +226,8 @@ function Cart() {
           />
         </FormField>
 
-        {closed && (
-          <p className="rounded-card border border-warn-400/50 bg-warn-400/10 p-4 text-sm text-text sm:col-span-2">
-            {t(restaurant.accepting_orders ? 'restaurant.closedNotice' : 'restaurant.pausedNotice')}
-          </p>
-        )}
-        {error && <p className="text-sm text-danger sm:col-span-2">{error}</p>}
+        {closed && <p className={`sm:col-span-2 ${noticeClass}`}>{t(closedNoticeKey(restaurant))}</p>}
+        <FormMessage error={error} className="sm:col-span-2" />
 
         <button
           type="submit"

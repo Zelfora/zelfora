@@ -14,7 +14,9 @@ import {
 import { describeRule } from '../services/menuOptions';
 
 const iconButtonClass =
-  'flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-hover hover:text-primary-300 disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-muted';
+  'flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-hover disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-muted';
+const moveButtonClass = `${iconButtonClass} hover:text-primary-300`;
+const removeButtonClass = `${iconButtonClass} hover:text-danger`;
 
 // Edits the options of a dish in MenuItemForm: groups such as "Size" or
 // "Extras", each with its choices and how many a customer picks. value is
@@ -76,6 +78,12 @@ function MenuOptionsEditor({ value, onChange, copySources, formatAmount }) {
     if (e.key === 'Enter') e.preventDefault();
   }
 
+  function addChoiceOnEnter(e, group, afterIndex) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    if (group.choices.length < MAX_CHOICES) addChoice(group.id, afterIndex);
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-text-muted">{t('partner.options.intro')}</p>
@@ -103,7 +111,7 @@ function MenuOptionsEditor({ value, onChange, copySources, formatAmount }) {
                 disabled={index === 0}
                 aria-label={t('partner.options.moveUp')}
                 title={t('partner.options.moveUp')}
-                className={iconButtonClass}
+                className={moveButtonClass}
               >
                 <ChevronUp size={18} />
               </button>
@@ -113,7 +121,7 @@ function MenuOptionsEditor({ value, onChange, copySources, formatAmount }) {
                 disabled={index === value.length - 1}
                 aria-label={t('partner.options.moveDown')}
                 title={t('partner.options.moveDown')}
-                className={iconButtonClass}
+                className={moveButtonClass}
               >
                 <ChevronDown size={18} />
               </button>
@@ -122,7 +130,7 @@ function MenuOptionsEditor({ value, onChange, copySources, formatAmount }) {
                 onClick={() => onChange(value.filter((g) => g.id !== group.id))}
                 aria-label={t('partner.options.removeGroup')}
                 title={t('partner.options.removeGroup')}
-                className={`${iconButtonClass} hover:text-danger`}
+                className={removeButtonClass}
               >
                 <Trash2 size={16} />
               </button>
@@ -176,11 +184,7 @@ function MenuOptionsEditor({ value, onChange, copySources, formatAmount }) {
                     placeholder={choiceIndex === 0 ? t('partner.options.choicePlaceholder') : ''}
                     value={choice.name}
                     onChange={(e) => updateChoice(group.id, choice.id, 'name', e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key !== 'Enter') return;
-                      e.preventDefault();
-                      if (group.choices.length < MAX_CHOICES) addChoice(group.id, choiceIndex);
-                    }}
+                    onKeyDown={(e) => addChoiceOnEnter(e, group, choiceIndex)}
                     className={`min-w-0 flex-1 ${inputClass}`}
                   />
                   <input
@@ -190,11 +194,7 @@ function MenuOptionsEditor({ value, onChange, copySources, formatAmount }) {
                     placeholder={t('partner.field.amountPlaceholder')}
                     value={choice.price}
                     onChange={(e) => updateChoice(group.id, choice.id, 'price', e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key !== 'Enter') return;
-                      e.preventDefault();
-                      if (group.choices.length < MAX_CHOICES) addChoice(group.id, choiceIndex);
-                    }}
+                    onKeyDown={(e) => addChoiceOnEnter(e, group, choiceIndex)}
                     className={`w-28 ${inputClass}`}
                   />
                   <button
@@ -202,7 +202,7 @@ function MenuOptionsEditor({ value, onChange, copySources, formatAmount }) {
                     onClick={() => removeChoice(group.id, choice.id)}
                     aria-label={t('partner.options.removeChoice', { number: choiceIndex + 1 })}
                     title={t('partner.options.removeChoice', { number: choiceIndex + 1 })}
-                    className={`${iconButtonClass} hover:text-danger`}
+                    className={removeButtonClass}
                   >
                     <X size={16} />
                   </button>

@@ -57,16 +57,6 @@ create policy "Users delete their own images"
     and (storage.foldername(name))[1] = (select auth.uid())::text
   );
 
--- ---------------------------------------------------------------------------
--- 3. Profile photos
---    Users can already update their own profiles row (policy created in the
---    dashboard), so no new policy is needed.
--- ---------------------------------------------------------------------------
-
-alter table public.profiles
-  add column if not exists avatar_url text;
-
-alter table public.profiles drop constraint if exists profiles_avatar_url_valid;
-alter table public.profiles add constraint profiles_avatar_url_valid check (
-  avatar_url ~* '^https://' and char_length(avatar_url) <= 2000
-) not valid;
+-- The image columns themselves, with their https checks, are in the files of
+-- their tables: restaurant_owners.sql (restaurants.image, menu_items.image)
+-- and profiles.sql (profiles.avatar_url).

@@ -37,12 +37,13 @@ You need Node.js 20.19 or newer and access to the Zelfora Supabase project.
 The website talks to Supabase directly from the browser. The anon key is public by design, so the data is protected by Row Level Security (RLS) policies in the database.
 
 - `supabase/schema.sql` is a reference copy of the database tables. It is not meant to be run.
+- `supabase/profiles.sql` sets up user profiles: the table, who can read and change them (only the profile photo), and the trigger that creates a profile for every new account.
 - `supabase/restaurant_owners.sql` lets restaurant owners register a restaurant and manage it: its details, photo, opening hours and menu. It keeps new restaurants hidden until they are approved, and name changes waiting until they are approved.
 - `supabase/orders.sql` sets up orders: the delivery details, who can see and update orders, a trigger that checks every order and recalculates its prices on the server, and live updates.
-- `supabase/images.sql` creates the `images` storage bucket for uploaded photos and adds profile photos.
-- `supabase/auth_hardening.sql` turns on Row Level Security for the restaurant, menu and order tables.
+- `supabase/auth_hardening.sql` turns on Row Level Security for the restaurant, menu and order tables, and takes away write access from visitors who aren't signed in.
+- `supabase/images.sql` creates the `images` storage bucket for uploaded photos.
 
-Run them in the Supabase SQL Editor in this order: `restaurant_owners.sql`, `orders.sql`, `auth_hardening.sql`, `images.sql`. All four are safe to run more than once, so after a change you can simply run the changed file again.
+Run them in the Supabase SQL Editor in this order: `profiles.sql`, `restaurant_owners.sql`, `orders.sql`, `auth_hardening.sql`, `images.sql`. All five are safe to run more than once, so after a change you can simply run the changed file again.
 
 While Zelfora is being built, `supabase/mock_data.sql` fills the database with demo data: demo customer accounts, full menus for the demo restaurants and four weeks of orders. Run it again to refresh the orders with recent dates. Never run it once there are real customers.
 
@@ -68,7 +69,7 @@ src/
   components/   shared UI such as the navbar, cards and switchers, and the restaurant portal's tabs
   context/      app-wide state: auth, cart, language and theme
   hooks/        the restaurant portal's live order list
-  services/     images, orders (statuses, live updates) and opening hours
+  services/     images, dish options, orders (statuses, live updates), opening hours and restaurants
   i18n/         translations for nl, en and de
 supabase/       database schema and SQL scripts
 ```

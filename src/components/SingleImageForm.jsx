@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from '../context/LanguageContext';
+import FormMessage from './FormMessage';
 import ImageInput from './ImageInput';
 import { primaryButtonClass, secondaryButtonClass } from './formHelpers';
 import { commitImage, imageErrorKey, isValidImageValue } from '../services/images';
@@ -66,12 +67,7 @@ function SingleImageForm({ kind, label, current, save, renderPreview }) {
         <ImageInput kind={kind} value={value} onChange={handleChange} renderPreview={renderPreview} />
       </fieldset>
 
-      {error && <p className="text-sm text-danger">{error}</p>}
-      {info && (
-        <p role="status" className="text-sm text-accent-400">
-          {info}
-        </p>
-      )}
+      <FormMessage error={error} info={info} />
 
       {changed && (
         <div className="flex flex-wrap gap-3">

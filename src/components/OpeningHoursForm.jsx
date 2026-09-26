@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { supabase } from '../supabaseClient';
 import { useTranslation } from '../context/LanguageContext';
+import FormMessage from './FormMessage';
 import { inputClass, primaryButtonClass } from './formHelpers';
 import { WEEKDAYS, isValidTime, weekdayName } from '../services/openingHours';
+import { updateRestaurant } from '../services/restaurants';
 
 const DEFAULT_PERIOD = ['12:00', '22:00'];
 
@@ -56,20 +57,15 @@ function OpeningHoursForm({ restaurant, onSaved }) {
     }
 
     setSaving(true);
-    const { data, error: saveError } = await supabase
-      .from('restaurants')
-      .update({ opening_hours: hours })
-      .eq('id', restaurant.id)
-      .select('*, is_open')
-      .single();
-    setSaving(false);
-    if (saveError) {
-      console.error(saveError);
+    try {
+      onSaved(await updateRestaurant(restaurant.id, { opening_hours: hours }));
+      setInfo(t('hours.saved'));
+    } catch (err) {
+      console.error(err);
       setError(t('partner.error.saveFailed'));
-      return;
+    } finally {
+      setSaving(false);
     }
-    onSaved(data);
-    setInfo(t('hours.saved'));
   }
 
   return (
@@ -127,12 +123,7 @@ function OpeningHoursForm({ restaurant, onSaved }) {
         </div>
       )}
 
-      {error && <p className="text-sm text-danger">{error}</p>}
-      {info && (
-        <p role="status" className="text-sm text-accent-400">
-          {info}
-        </p>
-      )}
+      <FormMessage error={error} info={info} />
 
       <button type="submit" disabled={saving} className={`self-start ${primaryButtonClass}`}>
         {saving ? t('common.pleaseWait') : t('hours.save')}

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { authErrorMessage, useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
+import FormMessage from '../components/FormMessage';
 import { inputClass, primaryButtonClass } from '../components/formHelpers';
 
 // Standard login markup so iCloud Keychain and other password managers work.
@@ -111,8 +112,7 @@ function Login() {
             </button>
           )}
 
-          {error && <p className="text-sm text-danger">{error}</p>}
-          {info && <p className="text-sm text-accent-400">{info}</p>}
+          <FormMessage error={error} info={info} />
 
           <button
             type="submit"

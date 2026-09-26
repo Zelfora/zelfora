@@ -5,8 +5,9 @@
 -- setting published = true in the Table Editor. Renaming a published
 -- restaurant needs approval too (section 5).
 --
--- Run in Supabase Dashboard -> SQL Editor BEFORE orders.sql (validate_order
--- there uses is_open() and menu_items.available from here). Safe to re-run.
+-- Run in Supabase Dashboard -> SQL Editor after profiles.sql and BEFORE
+-- orders.sql (validate_order there uses is_open() and menu_items.available
+-- from here). Safe to re-run.
 
 -- ---------------------------------------------------------------------------
 -- 1. Ownership and approval
@@ -279,7 +280,8 @@ alter table public.menu_items add constraint menu_items_options_valid check (
 -- ---------------------------------------------------------------------------
 -- 4. New restaurants from the portal
 --    Don't trust the browser: the owner is always the signed-in user, and a
---    new restaurant starts unpublished and unrated.
+--    new restaurant starts unpublished and unrated, registered now. Tags are
+--    the admin's to set (owners can't edit them afterwards either).
 -- ---------------------------------------------------------------------------
 
 create or replace function public.prepare_new_restaurant()
@@ -294,6 +296,8 @@ begin
     new.published      := false;
     new.rating         := null;
     new.requested_name := null;
+    new.tags           := null;
+    new.created_at     := now();
   end if;
   return new;
 end;
@@ -385,8 +389,13 @@ create policy "Owners add menu items"
   ));
 
 -- Owners manage their own menu from the portal: edit, reorder, mark as sold
--- out and delete items.
-grant update, delete on public.menu_items to authenticated;
+-- out and delete items. They can change only these columns, so a dish keeps
+-- its id, its restaurant and when it was added. (Revoking the table-wide
+-- privilege first also clears earlier column grants, so this is re-runnable.)
+revoke update on public.menu_items from authenticated;
+grant update (name, price, description, category, image, available, position, options)
+  on public.menu_items to authenticated;
+grant delete on public.menu_items to authenticated;
 
 drop policy if exists "Owners update menu items" on public.menu_items;
 create policy "Owners update menu items"

@@ -9,12 +9,10 @@
   --color-border: #2d1a52;
 
   /* Primary accent: neon purple */
-  --color-primary-50: #f3e8ff;
   --color-primary-300: #c084fc;
   --color-primary-400: #a855f7;
   --color-primary-500: #9333ea;
   --color-primary-600: #7e22ce;
-  --color-primary-glow: #c026f6;
 
   /* Secondary accent: electric cyan */
   --color-accent-400: #22d3ee;
@@ -31,9 +29,10 @@
   --color-text-muted: #a99fc0;
   --color-text-faint: #6b6280;
 
-  /* Fonts */
-  --font-sans: "Inter", "Segoe UI", system-ui, sans-serif;
-  --font-display: "Space Grotesk", "Inter", sans-serif;
+  /* Fonts, bundled with the site (imported in main.jsx) rather than loaded
+     from Google, so visitors' IP addresses aren't sent to a third party. */
+  --font-sans: "Inter Variable", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Space Grotesk Variable", "Inter Variable", sans-serif;
 
   /* Radius */
   --radius-card: 1rem;
@@ -291,26 +290,6 @@
 }
 
 @layer utilities {
-  .glow {
-    box-shadow: var(--shadow-glow);
-  }
-  .glow-lg {
-    box-shadow: var(--shadow-glow-lg);
-  }
-
-  @keyframes pulse-glow {
-    0%,
-    100% {
-      box-shadow: 0 0 10px rgba(147, 51, 234, 0.35);
-    }
-    50% {
-      box-shadow: 0 0 22px rgba(147, 51, 234, 0.6);
-    }
-  }
-  .animate-glow-pulse {
-    animation: pulse-glow 2.5s ease-in-out infinite;
-  }
-
   /* Drag and drop (SortableMenu): the floating copy lifts when picked up and
      settles when dropped (.drag-dropping is set on the overlay by dnd-kit). */
   @keyframes drag-lift {

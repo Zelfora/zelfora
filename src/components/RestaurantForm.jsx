@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useTranslation } from '../context/LanguageContext';
 import FormField from './FormField';
+import FormMessage from './FormMessage';
 import ImageInput from './ImageInput';
-import { inputClass, parseAmount, primaryButtonClass, textareaClass } from './formHelpers';
+import { formatAmount, inputClass, parseAmount, primaryButtonClass, textareaClass } from './formHelpers';
 import { commitImage, imageErrorKey, isValidImageValue } from '../services/images';
+import { updateRestaurant } from '../services/restaurants';
 
 // Matches the restaurants_delivery_fee_range constraint (< 100).
 const MAX_DELIVERY_FEE = 99.99;
@@ -36,12 +38,7 @@ function RestaurantForm({ restaurant = null, onSaved }) {
           cuisine: restaurant.cuisine ?? '',
           address: restaurant.address ?? '',
           deliveryTime: restaurant.delivery_time ?? '',
-          deliveryFee:
-            Number(restaurant.delivery_fee) > 0
-              ? new Intl.NumberFormat(locale, { minimumFractionDigits: 2, useGrouping: false }).format(
-                  restaurant.delivery_fee
-                )
-              : '',
+          deliveryFee: Number(restaurant.delivery_fee) > 0 ? formatAmount(restaurant.delivery_fee, locale) : '',
           description: restaurant.description ?? '',
         }
       : EMPTY_FORM
@@ -96,14 +93,11 @@ function RestaurantForm({ restaurant = null, onSaved }) {
     setSubmitting(true);
     try {
       if (editing) {
-        const { data, error: updateError } = await supabase
-          .from('restaurants')
+        const data = await updateRestaurant(restaurant.id, {
+          ...fields,
           // Asking for the current name withdraws a pending request.
-          .update({ ...fields, requested_name: name === restaurant.name ? null : name })
-          .eq('id', restaurant.id)
-          .select('*, is_open')
-          .single();
-        if (updateError) throw updateError;
+          requested_name: name === restaurant.name ? null : name,
+        });
         onSaved(data);
         setInfo(t(data.requested_name ? 'partner.details.savedPendingName' : 'partner.details.saved'));
       } else {
@@ -216,12 +210,7 @@ function RestaurantForm({ restaurant = null, onSaved }) {
         </FormField>
       )}
 
-      {error && <p className="text-sm text-danger sm:col-span-2">{error}</p>}
-      {info && (
-        <p role="status" className="text-sm text-accent-400 sm:col-span-2">
-          {info}
-        </p>
-      )}
+      <FormMessage error={error} info={info} className="sm:col-span-2" />
 
       <button type="submit" disabled={submitting} className={`mt-2 sm:col-span-2 ${primaryButtonClass}`}>
         {submitting ? t('common.pleaseWait') : t(editing ? 'common.save' : 'partner.signup.submit')}

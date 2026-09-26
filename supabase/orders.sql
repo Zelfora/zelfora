@@ -18,7 +18,9 @@ alter table public.orders add column if not exists phone text;
 alter table public.orders add column if not exists delivery_address text;
 alter table public.orders add column if not exists note text;
 -- The restaurant's delivery fee when the order was placed. total includes it.
-alter table public.orders add column if not exists delivery_fee numeric not null default 0;
+-- In cents, like the other amounts; the type change is for orders from before.
+alter table public.orders add column if not exists delivery_fee numeric(10,2) not null default 0;
+alter table public.orders alter column delivery_fee type numeric(10,2);
 -- When the order reached 'delivered', set by check_order_status_change
 -- (section 4). Orders delivered before this column existed have none.
 alter table public.orders add column if not exists delivered_at timestamptz;
@@ -122,6 +124,9 @@ declare
   clean_items   jsonb := '[]'::jsonb;
   computed      numeric := 0;
 begin
+  -- A fresh random id, so nobody can choose their order number (its first
+  -- characters, see orderNumber in services/orders.js).
+  new.id           := gen_random_uuid();
   new.user_id      := auth.uid();
   -- Every order starts at the first status, at the current time.
   new.status       := 'placed';

@@ -4,15 +4,16 @@ import { Store } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
+import FormMessage from '../components/FormMessage';
+import PageMessage from '../components/PageMessage';
 import PartnerMenu from '../components/PartnerMenu';
 import PartnerOrders from '../components/PartnerOrders';
 import PartnerSettings from '../components/PartnerSettings';
 import RestaurantForm from '../components/RestaurantForm';
 import Switch from '../components/Switch';
-import { primaryButtonClass } from '../components/formHelpers';
+import { cardClass, noticeClass, primaryButtonClass } from '../components/formHelpers';
 import { useOwnerOrders } from '../hooks/useOwnerOrders';
-
-const cardClass = 'rounded-card border border-border bg-surface/70 p-6 backdrop-blur-md';
+import { updateRestaurant } from '../services/restaurants';
 
 // The portal's tabs, at /partner, /partner/menu and /partner/settings.
 const TABS = [
@@ -33,7 +34,7 @@ function Partner() {
   const { t } = useTranslation();
 
   if (loading) {
-    return <main className="px-4 py-16 text-center text-text-muted md:px-8">{t('common.loading')}</main>;
+    return <PageMessage>{t('common.loading')}</PageMessage>;
   }
   if (!user) {
     return <PartnerIntro />;
@@ -103,10 +104,10 @@ function PartnerDashboard({ userId }) {
   }, [userId]);
 
   if (status === 'loading') {
-    return <main className="px-4 py-16 text-center text-text-muted md:px-8">{t('partner.loading')}</main>;
+    return <PageMessage>{t('partner.loading')}</PageMessage>;
   }
   if (status === 'error') {
-    return <main className="px-4 py-16 text-center text-danger md:px-8">{t('partner.loadFailed')}</main>;
+    return <PageMessage tone="error">{t('partner.loadFailed')}</PageMessage>;
   }
   if (!restaurant) {
     return (
@@ -175,11 +176,7 @@ function PartnerPortal({ restaurant, onRestaurantChange }) {
         </div>
       </header>
 
-      {!restaurant.published && (
-        <p className="rounded-card border border-warn-400/50 bg-warn-400/10 p-4 text-sm text-text">
-          {t('partner.dashboard.pendingNotice')}
-        </p>
-      )}
+      {!restaurant.published && <p className={noticeClass}>{t('partner.dashboard.pendingNotice')}</p>}
 
       <OrderingStatus restaurant={restaurant} onRestaurantChange={onRestaurantChange} />
 
@@ -233,19 +230,14 @@ function OrderingStatus({ restaurant, onRestaurantChange }) {
   async function setAccepting(accepting) {
     setError('');
     setSaving(true);
-    const { data, error: updateError } = await supabase
-      .from('restaurants')
-      .update({ accepting_orders: accepting })
-      .eq('id', restaurant.id)
-      .select('*, is_open')
-      .single();
-    setSaving(false);
-    if (updateError) {
-      console.error(updateError);
+    try {
+      onRestaurantChange(await updateRestaurant(restaurant.id, { accepting_orders: accepting }));
+    } catch (err) {
+      console.error(err);
       setError(t('partner.error.saveFailed'));
-      return;
+    } finally {
+      setSaving(false);
     }
-    onRestaurantChange(data);
   }
 
   let state = 'open';
@@ -260,7 +252,7 @@ function OrderingStatus({ restaurant, onRestaurantChange }) {
           {t(`partner.ordering.${state}`)}
         </p>
         <p className="text-sm text-text-muted">{t(`partner.ordering.${state}Hint`)}</p>
-        {error && <p className="text-sm text-danger">{error}</p>}
+        <FormMessage error={error} />
       </div>
       <Switch
         checked={restaurant.accepting_orders}

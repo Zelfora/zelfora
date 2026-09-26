@@ -294,8 +294,10 @@ function CartLine({ ref, item, enter, flash, leaving, onLeave, onLeft }) {
     }, 240);
   }
 
+  // The hover color is added per button: two hover:text classes on one
+  // element don't override each other in class order.
   const stepClass =
-    'flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-hover hover:text-primary-300 disabled:cursor-default disabled:opacity-35';
+    'flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-hover disabled:cursor-default disabled:opacity-35';
 
   return (
     <li ref={ref} data-leaving={leaving || undefined} className={`cart-line ${enter ? 'cart-line-enter' : ''}`}>
@@ -331,7 +333,7 @@ function CartLine({ ref, item, enter, flash, leaving, onLeave, onLeft }) {
                   type="button"
                   onClick={() => updateQuantity(item.key, item.quantity - 1)}
                   aria-label={t('cart.decrease', { name: item.name })}
-                  className={stepClass}
+                  className={`${stepClass} hover:text-primary-300`}
                 >
                   <Minus size={13} />
                 </button>
@@ -342,7 +344,7 @@ function CartLine({ ref, item, enter, flash, leaving, onLeave, onLeft }) {
                 onClick={() => updateQuantity(item.key, item.quantity + 1)}
                 disabled={item.quantity >= MAX_QUANTITY}
                 aria-label={t('cart.increase', { name: item.name })}
-                className={stepClass}
+                className={`${stepClass} hover:text-primary-300`}
               >
                 <Plus size={13} />
               </button>

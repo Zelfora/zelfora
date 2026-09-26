@@ -56,6 +56,7 @@ const placeholderClass = 'bg-primary-500/5 outline-2 outline-dashed outline-prim
 // A row moved with the keyboard stays visible and is lifted in place.
 const liftedClass = 'relative z-10 bg-surface shadow-glow ring-2 ring-primary-500';
 const overlayClass = 'drag-lift h-full rounded-card bg-surface shadow-glow-lg ring-2 ring-primary-500/60';
+const MODE_CLASS = { placeholder: placeholderClass, lifted: liftedClass };
 const countClass = 'rounded-pill bg-primary-500/10 px-2 py-0.5 text-xs font-semibold text-primary-300';
 
 const groupOf = (item) => item.category ?? '';
@@ -545,9 +546,7 @@ function CategoryHeader({ group, name, count, canDrag, mode }) {
       ref={attachNode}
       data-slide={categoryId(group)}
       data-category-header={group}
-      className={`flex min-h-10 scroll-mt-24 items-center rounded-card ${
-        mode === 'placeholder' ? placeholderClass : mode === 'lifted' ? liftedClass : ''
-      }`}
+      className={`flex min-h-10 scroll-mt-24 items-center rounded-card ${MODE_CLASS[mode] ?? ''}`}
     >
       <div className={`flex min-w-0 flex-1 items-center gap-2 ${mode === 'placeholder' ? 'invisible' : ''}`}>
         {handle}
@@ -571,9 +570,7 @@ function DraggableItem({ item, group, canDrag, mode, renderItem }) {
     <li
       ref={attachNode}
       data-slide={item.id}
-      className={`scroll-mt-24 rounded-card ${
-        mode === 'placeholder' ? placeholderClass : mode === 'lifted' ? liftedClass : ''
-      }`}
+      className={`scroll-mt-24 rounded-card ${MODE_CLASS[mode] ?? ''}`}
     >
       <div className={mode === 'placeholder' ? 'invisible' : undefined}>{renderItem(item, handle)}</div>
     </li>

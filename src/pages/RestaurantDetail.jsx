@@ -8,14 +8,23 @@ import MenuItemDialog from '../components/MenuItemDialog';
 import CartPanel from '../components/CartPanel';
 import FoodImage from '../components/FoodImage';
 import OpeningHoursList from '../components/OpeningHoursList';
+import PageMessage from '../components/PageMessage';
+import { noticeClass } from '../components/formHelpers';
 import { useTranslation } from '../context/LanguageContext';
+import { closedNoticeKey, fetchMenu } from '../services/restaurants';
+
+async function fetchRestaurant(id) {
+  const { data, error } = await supabase.from('restaurants').select('*, is_open').eq('id', id).maybeSingle();
+  if (error) throw error;
+  return data;
+}
 
 function RestaurantDetail() {
   const { id } = useParams();
   const { t, formatPrice } = useTranslation();
   const [restaurant, setRestaurant] = useState(null);
   const [menu, setMenu] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState('loading'); // 'loading' | 'ready' | 'error'
   // The dish in the dialog. It stays set after closing, so the dialog can
   // animate out; openCount starts every open afresh.
   const [dialog, setDialog] = useState({ item: null, open: false, openCount: 0 });
@@ -29,37 +38,44 @@ function RestaurantDetail() {
   }
 
   useEffect(() => {
+    // The cart panel links to another restaurant's page, so an answer can
+    // arrive after the page moved on; ignore it then.
+    let ignore = false;
     async function load() {
-      setLoading(true);
-      const [{ data: restaurantData }, { data: menuData }] = await Promise.all([
-        supabase.from('restaurants').select('*, is_open').eq('id', id).maybeSingle(),
-        // In the order the owner chose; items they never moved come last.
-        supabase
-          .from('menu_items')
-          .select('*')
-          .eq('restaurant_id', id)
-          .order('position', { nullsFirst: false })
-          .order('created_at'),
-      ]);
-      setRestaurant(restaurantData);
-      setMenu(menuData ?? []);
-      setLoading(false);
+      setStatus('loading');
+      try {
+        const [restaurantData, menuData] = await Promise.all([fetchRestaurant(id), fetchMenu(id)]);
+        if (ignore) return;
+        setRestaurant(restaurantData);
+        setMenu(menuData);
+        setStatus('ready');
+      } catch (error) {
+        console.error(error);
+        if (!ignore) setStatus('error');
+      }
     }
     load();
+    return () => {
+      ignore = true;
+    };
   }, [id]);
 
-  if (loading) {
-    return <main className="px-4 py-16 text-center text-text-muted md:px-8">{t('common.loading')}</main>;
+  if (status === 'loading') {
+    return <PageMessage>{t('common.loading')}</PageMessage>;
+  }
+
+  if (status === 'error') {
+    return <PageMessage tone="error">{t('restaurant.loadFailed')}</PageMessage>;
   }
 
   if (!restaurant) {
     return (
-      <main className="mx-auto max-w-6xl px-4 py-16 text-center md:px-8">
-        <p className="mb-4 text-lg text-text-muted">{t('restaurant.notFound')}</p>
+      <PageMessage>
+        <p className="mb-4 text-lg">{t('restaurant.notFound')}</p>
         <Link to="/" className="font-semibold text-primary-300 hover:text-primary-400">
           &larr; {t('restaurant.backHome')}
         </Link>
-      </main>
+      </PageMessage>
     );
   }
 
@@ -69,7 +85,7 @@ function RestaurantDetail() {
   const closed = !preview && !restaurant.is_open;
   let orderNotice = null;
   if (preview) orderNotice = t('itemDialog.preview');
-  else if (closed) orderNotice = t(restaurant.accepting_orders ? 'restaurant.closedNotice' : 'restaurant.pausedNotice');
+  else if (closed) orderNotice = t(closedNoticeKey(restaurant));
 
   return (
     <main>
@@ -98,19 +114,21 @@ function RestaurantDetail() {
           <div className="mb-4 flex flex-wrap items-center gap-4 text-sm text-text-muted">
             <StarRating rating={restaurant.rating} />
             <span>{restaurant.cuisine}</span>
-            <span className="flex items-center gap-1">
-              <Clock size={16} className="text-accent-400" />
-              {restaurant.delivery_time}
-            </span>
+            {restaurant.delivery_time && (
+              <span className="flex items-center gap-1">
+                <Clock size={16} className="text-accent-400" />
+                {restaurant.delivery_time}
+              </span>
+            )}
             <span className="flex items-center gap-1">
               <Bike size={16} className="text-accent-400" />
               {t('restaurant.deliveryFee', { fee: formatPrice(restaurant.delivery_fee) })}
             </span>
           </div>
-  
+
           <p className="mb-3 max-w-2xl text-text-muted">{restaurant.description}</p>
           <p className="mb-6 text-sm text-text-faint">{restaurant.address}</p>
-  
+
           {restaurant.tags?.length > 0 && (
             <div className="mb-8 flex flex-wrap gap-2">
               {restaurant.tags.map((tag) => (
@@ -123,7 +141,7 @@ function RestaurantDetail() {
               ))}
             </div>
           )}
-  
+
           {restaurant.opening_hours && (
             <details className="mb-8" open={closed}>
               <summary className="mb-2 cursor-pointer text-sm font-semibold text-text hover:text-primary-300">
@@ -132,28 +150,26 @@ function RestaurantDetail() {
               <OpeningHoursList hours={restaurant.opening_hours} />
             </details>
           )}
-  
+
           {preview && (
-            <div className="mb-8 flex flex-col gap-2 rounded-card border border-warn-400/50 bg-warn-400/10 p-4 text-sm text-text sm:flex-row sm:items-center sm:justify-between">
+            <div className={`mb-8 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between ${noticeClass}`}>
               <p>{t('restaurant.previewNotice')}</p>
               <Link to="/partner" className="flex-shrink-0 font-semibold text-primary-300 hover:text-primary-400">
                 {t('restaurant.previewManage')} &rarr;
               </Link>
             </div>
           )}
-  
-          {closed && (
-            <p className="mb-8 rounded-card border border-warn-400/50 bg-warn-400/10 p-4 text-sm text-text">
-              {t(restaurant.accepting_orders ? 'restaurant.closedNotice' : 'restaurant.pausedNotice')}
-            </p>
-          )}
-  
+
+          {closed && <p className={`mb-8 ${noticeClass}`}>{orderNotice}</p>}
+
           <h2 className="mb-4 font-display text-2xl font-semibold text-text">{t('restaurant.menu')}</h2>
-  
+
           <div className="space-y-8">
             {categories.map((category) => (
               <div key={category}>
-                <h3 className="mb-3 font-display text-lg font-semibold text-primary-300">{category}</h3>
+                <h3 className="mb-3 font-display text-lg font-semibold text-primary-300">
+                  {category || t('partner.menu.uncategorized')}
+                </h3>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   {menu
                     .filter((item) => item.category === category)

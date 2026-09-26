@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { MapPin, Phone } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
+import FormMessage from './FormMessage';
 import OrderStatusBadge from './OrderStatusBadge';
-import { primaryButtonClass, secondaryButtonClass } from './formHelpers';
+import { cardClass, primaryButtonClass, secondaryButtonClass } from './formHelpers';
 import { NEXT_STATUS, deliveredSameDay, isActiveOrder, orderErrorMessage, orderNumber } from '../services/orders';
-import { formatOptions } from '../services/menuOptions';
-
-const cardClass = 'rounded-card border border-border bg-surface/70 p-6 backdrop-blur-md';
+import { formatOptions, sumPrices } from '../services/menuOptions';
 
 const TIME = { hour: '2-digit', minute: '2-digit' };
 const DATE_AND_TIME = { day: 'numeric', month: 'short', ...TIME };
@@ -126,7 +125,7 @@ function OrderCard({ order, onUpdate }) {
     }
   }
 
-  const itemsTotal = order.items.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0);
+  const itemsTotal = sumPrices(order.items.map((item) => Number(item.price) * item.quantity));
 
   return (
     <li
@@ -217,7 +216,7 @@ function OrderCard({ order, onUpdate }) {
         </div>
       </dl>
 
-      {error && <p className="mt-3 text-sm text-danger">{error}</p>}
+      <FormMessage error={error} className="mt-3" />
 
       {active && (
         <div className="mt-4 flex flex-wrap gap-3">

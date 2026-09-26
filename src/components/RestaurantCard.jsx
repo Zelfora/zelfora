@@ -46,10 +46,15 @@ function RestaurantCard({ restaurant, matchedDishes = [] }) {
           </p>
         )}
         <div className="flex items-center justify-between border-t border-border pt-3 text-sm text-text-muted">
-          <span className="flex items-center gap-1">
-            <Clock size={16} className="text-accent-400" />
-            {restaurant.delivery_time}
-          </span>
+          {/* The delivery time is optional for owners. */}
+          {restaurant.delivery_time ? (
+            <span className="flex items-center gap-1">
+              <Clock size={16} className="text-accent-400" />
+              {restaurant.delivery_time}
+            </span>
+          ) : (
+            <span />
+          )}
           <span className="flex items-center gap-1">
             <Bike size={16} className="text-accent-400" />
             {t('restaurant.deliveryFee', { fee: formatPrice(restaurant.delivery_fee) })}

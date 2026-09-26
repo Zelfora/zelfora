@@ -13,7 +13,7 @@ function Home() {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [restaurants, setRestaurants] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState('loading'); // 'loading' | 'ready' | 'error'
 
   useEffect(() => {
     async function load() {
@@ -26,9 +26,14 @@ function Home() {
         .order('name')
         .order('position', { referencedTable: 'menu_items', nullsFirst: false })
         .order('created_at', { referencedTable: 'menu_items' });
+      if (error) {
+        console.error(error);
+        setStatus('error');
+        return;
+      }
       // Open restaurants first; the sort is stable, so each group stays alphabetical.
-      if (!error) setRestaurants(data.sort((a, b) => Number(b.is_open) - Number(a.is_open)));
-      setLoading(false);
+      setRestaurants(data.sort((a, b) => Number(b.is_open) - Number(a.is_open)));
+      setStatus('ready');
     }
     load();
   }, []);
@@ -52,6 +57,7 @@ function Home() {
         <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-faint" />
         <input
           type="text"
+          aria-label={t('home.searchLabel')}
           placeholder={t('home.searchPlaceholder')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -61,9 +67,9 @@ function Home() {
 
       <h2 className="mb-6 font-display text-2xl font-semibold text-text">{t('home.featured')}</h2>
 
-      {loading ? (
-        <p className="text-text-muted">{t('home.loading')}</p>
-      ) : (
+      {status === 'loading' && <p className="text-text-muted">{t('home.loading')}</p>}
+      {status === 'error' && <p className="text-danger">{t('home.loadFailed')}</p>}
+      {status === 'ready' && (
         <>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {results.map(({ restaurant, dishes }) => (
