@@ -3,13 +3,19 @@ import { useCart } from '../context/CartContext';
 import { useTranslation } from '../context/LanguageContext';
 import FoodImage from './FoodImage';
 
-// orderable is false when an owner previews their unpublished restaurant.
+// orderable is false while the restaurant can't take orders: it's closed, or
+// an owner is previewing their unpublished restaurant.
 function MenuItemCard({ item, restaurant, orderable = true }) {
   const { addItem } = useCart();
   const { t, formatPrice } = useTranslation();
+  const soldOut = item.available === false;
 
   return (
-    <div className="flex items-center gap-4 rounded-card border border-border bg-surface/70 p-3 backdrop-blur-md transition-colors hover:border-primary-500/50">
+    <div
+      className={`flex items-center gap-4 rounded-card border border-border bg-surface/70 p-3 backdrop-blur-md transition-colors hover:border-primary-500/50 ${
+        soldOut ? 'opacity-60' : ''
+      }`}
+    >
       <FoodImage
         src={item.image}
         alt={item.name}
@@ -21,14 +27,20 @@ function MenuItemCard({ item, restaurant, orderable = true }) {
         <p className="text-sm text-text-muted">{item.description}</p>
         <p className="mt-1 font-semibold text-primary-300">{formatPrice(item.price)}</p>
       </div>
-      {orderable && (
-        <button
-          aria-label={t('menuItem.add', { name: item.name })}
-          onClick={() => addItem(restaurant, item)}
-          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-primary-500 to-accent-500 text-white shadow-glow transition-transform hover:scale-110"
-        >
-          <Plus size={18} />
-        </button>
+      {soldOut ? (
+        <span className="flex-shrink-0 rounded-pill border border-border px-3 py-1 text-xs font-semibold text-text-muted">
+          {t('menuItem.soldOut')}
+        </span>
+      ) : (
+        orderable && (
+          <button
+            aria-label={t('menuItem.add', { name: item.name })}
+            onClick={() => addItem(restaurant, item)}
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-primary-500 to-accent-500 text-white shadow-glow transition-transform hover:scale-110"
+          >
+            <Plus size={18} />
+          </button>
+        )
       )}
     </div>
   );

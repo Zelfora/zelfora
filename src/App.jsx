@@ -22,7 +22,7 @@ function App() {
           <Route path="/restaurant/:id" element={<RestaurantDetail />} />
           <Route path="/login" element={<Login />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/partner" element={<Partner />} />
+          <Route path="/partner/:tab?" element={<Partner />} />
           <Route
             path="/cart"
             element={

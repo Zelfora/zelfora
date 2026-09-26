@@ -1,11 +1,12 @@
 -- Zelfora: restaurant owners
--- Lets a signed-in user register one restaurant, manage its menu items and
--- change its photo.
+-- Lets a signed-in user register one restaurant and run it from the portal:
+-- its details, photo, opening hours and menu.
 -- New restaurants stay hidden from customers until an admin approves them by
--- setting published = true in the Table Editor.
+-- setting published = true in the Table Editor. Renaming a published
+-- restaurant needs approval too (section 5).
 --
--- Run in Supabase Dashboard -> SQL Editor BEFORE auth_hardening.sql
--- (validate_order there reads restaurants.published). Safe to re-run.
+-- Run in Supabase Dashboard -> SQL Editor BEFORE orders.sql (validate_order
+-- there uses is_open() and menu_items.available from here). Safe to re-run.
 
 -- ---------------------------------------------------------------------------
 -- 1. Ownership and approval
@@ -31,10 +32,118 @@ create unique index if not exists restaurants_one_per_owner
   on public.restaurants (owner_id)
   where owner_id is not null;
 
+-- A new name the owner asked for, waiting for approval (section 5).
+alter table public.restaurants
+  add column if not exists requested_name text;
+
 -- ---------------------------------------------------------------------------
--- 2. Limits on what owners can enter
---    NOT VALID: enforced for new and changed rows without re-checking the
---    existing data. The portal mirrors these limits in its forms.
+-- 2. Opening hours, pausing and the menu
+-- ---------------------------------------------------------------------------
+
+-- The owner's switch to stop taking orders, for example on a busy evening.
+alter table public.restaurants
+  add column if not exists accepting_orders boolean not null default true;
+
+-- Weekly opening hours in Dutch time, keyed by ISO weekday (1 = Monday):
+--   {"1": ["11:00", "22:00"], "5": ["17:00", "01:00"]}
+-- A missing day is closed. A closing time at or before the opening time means
+-- the restaurant closes after midnight. Null means no hours are set: orders
+-- are accepted whenever accepting_orders is on.
+alter table public.restaurants
+  add column if not exists opening_hours jsonb;
+
+create or replace function public.valid_opening_hours(hours jsonb)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select case
+    when hours is null then true
+    when jsonb_typeof(hours) <> 'object' then false
+    else not exists (
+      select 1
+      from jsonb_each(hours) as entry(weekday, period)
+      where entry.weekday not in ('1', '2', '3', '4', '5', '6', '7')
+        -- Nested WHENs, because AND doesn't guarantee jsonb_array_length
+        -- only runs on arrays.
+        or case
+          when jsonb_typeof(entry.period) <> 'array' then true
+          when jsonb_array_length(entry.period) <> 2 then true
+          else not coalesce(
+            entry.period->>0 ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+            and entry.period->>1 ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+            and entry.period->>0 <> entry.period->>1,
+            false
+          )
+        end
+    )
+  end
+$$;
+
+create or replace function public.is_within_opening_hours(hours jsonb, at_time timestamptz default now())
+returns boolean
+language plpgsql
+stable
+set search_path = ''
+as $$
+declare
+  local_time timestamp := at_time at time zone 'Europe/Amsterdam';
+  today      int := extract(isodow from local_time);
+  yesterday  int := (today + 5) % 7 + 1;
+  now_time   time := local_time::time;
+  opens      time;
+  closes     time;
+begin
+  if hours is null then
+    return true;
+  end if;
+
+  -- Today's hours, which may run past midnight.
+  if hours ? today::text then
+    opens  := (hours -> today::text ->> 0)::time;
+    closes := (hours -> today::text ->> 1)::time;
+    if now_time >= opens and (closes <= opens or now_time < closes) then
+      return true;
+    end if;
+  end if;
+
+  -- Yesterday's hours, if they run past midnight into today.
+  if hours ? yesterday::text then
+    opens  := (hours -> yesterday::text ->> 0)::time;
+    closes := (hours -> yesterday::text ->> 1)::time;
+    if closes <= opens and now_time < closes then
+      return true;
+    end if;
+  end if;
+
+  return false;
+end;
+$$;
+
+-- Whether customers can order right now (publishing is checked separately).
+-- PostgREST exposes this as a computed column: select('*, is_open').
+create or replace function public.is_open(restaurant public.restaurants)
+returns boolean
+language sql
+stable
+set search_path = ''
+as $$
+  select restaurant.accepting_orders and public.is_within_opening_hours(restaurant.opening_hours)
+$$;
+
+-- Owners mark dishes as sold out, and choose the order of their menu
+-- (section 7). Items without a position come last.
+alter table public.menu_items
+  add column if not exists available boolean not null default true;
+alter table public.menu_items
+  add column if not exists position integer;
+
+-- ---------------------------------------------------------------------------
+-- 3. Limits on what owners can enter
+--    The constraints on the original columns are NOT VALID: enforced for new
+--    and changed rows without re-checking the existing data. The portal
+--    mirrors these limits in its forms.
 -- ---------------------------------------------------------------------------
 
 alter table public.restaurants drop constraint if exists restaurants_text_lengths;
@@ -59,6 +168,16 @@ alter table public.restaurants add constraint restaurants_image_https check (
   image ~* '^https://'
 ) not valid;
 
+alter table public.restaurants drop constraint if exists restaurants_requested_name_length;
+alter table public.restaurants add constraint restaurants_requested_name_length check (
+  char_length(btrim(requested_name)) between 1 and 100
+);
+
+alter table public.restaurants drop constraint if exists restaurants_opening_hours_valid;
+alter table public.restaurants add constraint restaurants_opening_hours_valid check (
+  public.valid_opening_hours(opening_hours)
+);
+
 alter table public.menu_items drop constraint if exists menu_items_text_lengths;
 alter table public.menu_items add constraint menu_items_text_lengths check (
   char_length(btrim(name)) between 1 and 100
@@ -78,7 +197,7 @@ alter table public.menu_items add constraint menu_items_image_https check (
 ) not valid;
 
 -- ---------------------------------------------------------------------------
--- 3. New restaurants from the portal
+-- 4. New restaurants from the portal
 --    Don't trust the browser: the owner is always the signed-in user, and a
 --    new restaurant starts unpublished and unrated.
 -- ---------------------------------------------------------------------------
@@ -91,9 +210,10 @@ as $$
 begin
   -- Inserts from the dashboard or SQL Editor (no signed-in user) are left alone.
   if auth.uid() is not null then
-    new.owner_id  := auth.uid();
-    new.published := false;
-    new.rating    := null;
+    new.owner_id       := auth.uid();
+    new.published      := false;
+    new.rating         := null;
+    new.requested_name := null;
   end if;
   return new;
 end;
@@ -105,7 +225,40 @@ create trigger prepare_new_restaurant
   for each row execute function public.prepare_new_restaurant();
 
 -- ---------------------------------------------------------------------------
--- 4. Row Level Security
+-- 5. Name changes
+--    Owners can't update name (see the grant in section 6); they set
+--    requested_name instead. While the restaurant is unpublished the new name
+--    applies right away, because the admin reviews the whole restaurant before
+--    publishing it. For a published restaurant the request waits: the admin
+--    approves it by copying requested_name into name in the Table Editor
+--    (which clears the request), or rejects it by clearing requested_name.
+-- ---------------------------------------------------------------------------
+
+create or replace function public.handle_name_request()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  new.requested_name := nullif(btrim(new.requested_name), '');
+  if new.requested_name is not null and not old.published then
+    new.name := new.requested_name;
+  end if;
+  -- Approving the request, or asking for the current name, closes it.
+  if new.requested_name = new.name then
+    new.requested_name := null;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists handle_name_request on public.restaurants;
+create trigger handle_name_request
+  before update on public.restaurants
+  for each row execute function public.handle_name_request();
+
+-- ---------------------------------------------------------------------------
+-- 6. Row Level Security
 --    These replace the old using (true) read policies, which existed as
 --    "... are public" (from auth_hardening.sql) and "... are publicly
 --    readable" (from the dashboard). Both names are dropped here.
@@ -151,7 +304,8 @@ create policy "Owners add menu items"
       and r.owner_id = (select auth.uid())
   ));
 
--- Owners manage their own menu from the portal: edit and delete items.
+-- Owners manage their own menu from the portal: edit, reorder, mark as sold
+-- out and delete items.
 grant update, delete on public.menu_items to authenticated;
 
 drop policy if exists "Owners update menu items" on public.menu_items;
@@ -180,11 +334,15 @@ create policy "Owners delete menu items"
   ));
 
 -- Owners can change their restaurant, but only the columns granted here, so
--- they can't publish it, rate it or hand it to someone else. To let owners
--- edit more fields, add those columns to the grant. (Revoking the table-wide
--- privilege first also clears earlier column grants, so this is re-runnable.)
+-- they can't publish it, rate it, rename it without approval or hand it to
+-- someone else. To let owners edit more fields, add those columns to the
+-- grant. (Revoking the table-wide privilege first also clears earlier column
+-- grants, so this is re-runnable.)
 revoke update on public.restaurants from authenticated;
-grant update (image) on public.restaurants to authenticated;
+grant update (
+  image, requested_name, cuisine, address, description, delivery_time, delivery_fee,
+  accepting_orders, opening_hours
+) on public.restaurants to authenticated;
 
 drop policy if exists "Owners update their restaurant" on public.restaurants;
 create policy "Owners update their restaurant"
@@ -194,3 +352,29 @@ create policy "Owners update their restaurant"
   with check (owner_id = (select auth.uid()));
 
 -- No delete policy on restaurants, so owners can't delete them.
+
+-- ---------------------------------------------------------------------------
+-- 7. Menu order
+--    Saves the whole order in one call: each item's position becomes its
+--    index in item_ids. It runs with the caller's rights, so RLS only lets it
+--    change the caller's own items. Returns how many items were updated.
+-- ---------------------------------------------------------------------------
+
+create or replace function public.reorder_menu_items(item_ids uuid[])
+returns integer
+language sql
+security invoker
+set search_path = ''
+as $$
+  with updated as (
+    update public.menu_items as m
+    set position = o.ord
+    from unnest(item_ids) with ordinality as o(id, ord)
+    where m.id = o.id
+    returning 1
+  )
+  select count(*)::integer from updated
+$$;
+
+revoke execute on function public.reorder_menu_items(uuid[]) from public, anon;
+grant execute on function public.reorder_menu_items(uuid[]) to authenticated;

@@ -1,19 +1,32 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Pencil, Store, Trash2 } from 'lucide-react';
+import { Link, NavLink, Navigate, useLocation, useParams } from 'react-router-dom';
+import { Store } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
-import FoodImage from '../components/FoodImage';
-import MenuItemForm from '../components/MenuItemForm';
-import RestaurantSignupForm from '../components/RestaurantSignupForm';
-import SingleImageForm from '../components/SingleImageForm';
+import PartnerMenu from '../components/PartnerMenu';
+import PartnerOrders from '../components/PartnerOrders';
+import PartnerSettings from '../components/PartnerSettings';
+import RestaurantForm from '../components/RestaurantForm';
+import Switch from '../components/Switch';
 import { primaryButtonClass } from '../components/formHelpers';
-import { deleteStoredImage } from '../services/images';
+import { useOwnerOrders } from '../hooks/useOwnerOrders';
 
 const cardClass = 'rounded-card border border-border bg-surface/70 p-6 backdrop-blur-md';
 
-// Restaurant owner portal: register a restaurant, then manage its photo and menu.
+// The portal's tabs, at /partner, /partner/menu and /partner/settings.
+const TABS = [
+  { path: '', label: 'partner.tab.orders' },
+  { path: 'menu', label: 'partner.tab.menu' },
+  { path: 'settings', label: 'partner.tab.settings' },
+];
+
+// Whether the restaurant is open changes with the time of day, so the portal
+// asks the database again this often.
+const OPEN_CHECK_INTERVAL = 60_000;
+
+// Restaurant owner portal: register a restaurant, then handle its orders and
+// manage its menu and settings.
 // Not wrapped in ProtectedRoute, so signed-out visitors first see what it's about.
 function Partner() {
   const { user, loading } = useAuth();
@@ -72,7 +85,12 @@ function PartnerDashboard({ userId }) {
   useEffect(() => {
     async function load() {
       // One restaurant per owner (unique index in restaurant_owners.sql).
-      const { data, error } = await supabase.from('restaurants').select('*').eq('owner_id', userId).maybeSingle();
+      // is_open is a computed column from the same file.
+      const { data, error } = await supabase
+        .from('restaurants')
+        .select('*, is_open')
+        .eq('owner_id', userId)
+        .maybeSingle();
       if (error) {
         console.error(error);
         setStatus('error');
@@ -93,64 +111,51 @@ function PartnerDashboard({ userId }) {
   if (!restaurant) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-10 md:px-8">
-        <RestaurantSignupForm
-          onCreated={(created) => {
-            setRestaurant(created);
-            markRestaurantOwned();
-          }}
-        />
+        <div className={`${cardClass} sm:p-8`}>
+          <h1 className="mb-2 font-display text-2xl font-semibold text-text">{t('partner.signup.title')}</h1>
+          <p className="mb-6 text-sm text-text-muted">{t('partner.signup.intro')}</p>
+          <RestaurantForm
+            onSaved={(created) => {
+              setRestaurant(created);
+              markRestaurantOwned();
+            }}
+          />
+        </div>
       </main>
     );
   }
-  return <MenuManager restaurant={restaurant} onRestaurantChange={setRestaurant} />;
+  return <PartnerPortal restaurant={restaurant} onRestaurantChange={setRestaurant} />;
 }
 
-function MenuManager({ restaurant, onRestaurantChange }) {
+// onRestaurantChange takes a new restaurant row or an updater function.
+function PartnerPortal({ restaurant, onRestaurantChange }) {
+  const { tab = '' } = useParams();
   const { t } = useTranslation();
-  const [menu, setMenu] = useState([]);
-  const [status, setStatus] = useState('loading'); // 'loading' | 'ready' | 'error'
+  const ordersState = useOwnerOrders(restaurant.id);
+  const newCount = ordersState.orders.filter((order) => order.status === 'placed').length;
 
   useEffect(() => {
-    async function load() {
-      const { data, error } = await supabase
-        .from('menu_items')
-        .select('*')
-        .eq('restaurant_id', restaurant.id)
-        .order('created_at');
-      if (error) {
-        console.error(error);
-        setStatus('error');
-        return;
-      }
-      setMenu(data);
-      setStatus('ready');
-    }
-    load();
-  }, [restaurant.id]);
+    const timer = setInterval(async () => {
+      const { data } = await supabase.from('restaurants').select('is_open').eq('id', restaurant.id).maybeSingle();
+      if (data) onRestaurantChange((current) => ({ ...current, is_open: data.is_open }));
+    }, OPEN_CHECK_INTERVAL);
+    return () => clearInterval(timer);
+  }, [restaurant.id, onRestaurantChange]);
 
-  // Owners may only change the image column (see the grant in restaurant_owners.sql).
-  async function saveRestaurantImage(image) {
-    const { data, error } = await supabase
-      .from('restaurants')
-      .update({ image })
-      .eq('id', restaurant.id)
-      .select()
-      .single();
-    if (error) throw error;
-    onRestaurantChange(data);
+  // The number of new orders in the browser tab's title, for owners who have
+  // another tab in front.
+  useEffect(() => {
+    if (newCount === 0) return;
+    const original = document.title;
+    document.title = `(${newCount}) ${original}`;
+    return () => {
+      document.title = original;
+    };
+  }, [newCount]);
+
+  if (!TABS.some(({ path }) => path === tab)) {
+    return <Navigate to="/partner" replace />;
   }
-
-  function replaceItem(saved) {
-    setMenu((current) => current.map((item) => (item.id === saved.id ? saved : item)));
-  }
-
-  function removeItem(id) {
-    setMenu((current) => current.filter((item) => item.id !== id));
-  }
-
-  // Items added by an admin may have no category; they're grouped under "Other".
-  const groups = [...new Set(menu.map((item) => item.category ?? ''))];
-  const categories = groups.filter(Boolean);
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-10 md:px-8">
@@ -176,142 +181,95 @@ function MenuManager({ restaurant, onRestaurantChange }) {
         </p>
       )}
 
-      <section className={cardClass}>
-        <h2 className="mb-1 font-display text-lg font-semibold text-text">{t('partner.photo.title')}</h2>
-        <p className="mb-4 text-sm text-text-muted">{t('partner.photo.intro')}</p>
-        <SingleImageForm
-          kind="restaurantCover"
-          label={t('partner.photo.title')}
-          current={restaurant.image}
-          save={saveRestaurantImage}
-        />
-      </section>
+      <OrderingStatus restaurant={restaurant} onRestaurantChange={onRestaurantChange} />
 
-      <section className={cardClass}>
-        <h2 className="mb-4 font-display text-lg font-semibold text-text">{t('partner.menu.addTitle')}</h2>
-        <MenuItemForm
-          restaurantId={restaurant.id}
-          categories={categories}
-          onSaved={(item) => setMenu((current) => [...current, item])}
-        />
-      </section>
+      <nav aria-label={t('partner.tab.label')} className="flex gap-1 rounded-pill border border-border bg-surface/70 p-1">
+        {TABS.map(({ path, label }) => (
+          <NavLink
+            key={path}
+            to={path ? `/partner/${path}` : '/partner'}
+            end
+            className={({ isActive }) =>
+              `flex flex-1 items-center justify-center gap-2 rounded-pill px-3 py-2 text-sm font-medium transition-colors ${
+                isActive
+                  ? 'bg-gradient-to-r from-primary-500 to-accent-500 text-white shadow-glow'
+                  : 'text-text-muted hover:text-text'
+              }`
+            }
+          >
+            {({ isActive }) => (
+              <>
+                {t(label)}
+                {path === '' && newCount > 0 && (
+                  <span
+                    className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold ${
+                      isActive ? 'bg-white text-primary-600' : 'bg-primary-500 text-white'
+                    }`}
+                  >
+                    {newCount}
+                  </span>
+                )}
+              </>
+            )}
+          </NavLink>
+        ))}
+      </nav>
 
-      <section className={cardClass}>
-        <h2 className="mb-4 font-display text-lg font-semibold text-text">
-          {t('partner.menu.title')} <span className="font-normal text-text-faint">({menu.length})</span>
-        </h2>
-
-        {status === 'loading' && <p className="text-sm text-text-muted">{t('common.loading')}</p>}
-        {status === 'error' && <p className="text-sm text-danger">{t('partner.menu.loadFailed')}</p>}
-        {status === 'ready' && menu.length === 0 && (
-          <p className="text-sm text-text-muted">{t('partner.menu.empty')}</p>
-        )}
-
-        <div className="space-y-6">
-          {groups.map((group) => (
-            <div key={group}>
-              <h3 className="mb-1 font-display font-semibold text-primary-300">
-                {group || t('partner.menu.uncategorized')}
-              </h3>
-              <ul className="divide-y divide-border">
-                {menu
-                  .filter((item) => (item.category ?? '') === group)
-                  .map((item) => (
-                    <MenuItemRow
-                      key={item.id}
-                      item={item}
-                      categories={categories}
-                      onUpdated={replaceItem}
-                      onDeleted={removeItem}
-                    />
-                  ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      </section>
+      {tab === '' && <PartnerOrders ordersState={ordersState} published={restaurant.published} />}
+      {tab === 'menu' && <PartnerMenu restaurant={restaurant} />}
+      {tab === 'settings' && <PartnerSettings restaurant={restaurant} onRestaurantChange={onRestaurantChange} />}
     </main>
   );
 }
 
-// One dish in the owner's menu, editable and deletable right there in the list.
-function MenuItemRow({ item, categories, onUpdated, onDeleted }) {
-  const { t, formatPrice } = useTranslation();
-  const [editing, setEditing] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+const ORDERING_DOT = { open: 'bg-accent-400', paused: 'bg-warn-400', closed: 'bg-text-faint' };
+
+// Whether customers can order right now, with the owner's switch to pause.
+function OrderingStatus({ restaurant, onRestaurantChange }) {
+  const { t } = useTranslation();
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  async function handleDelete() {
-    if (!window.confirm(t('partner.menu.confirmDelete', { name: item.name }))) return;
+  async function setAccepting(accepting) {
     setError('');
-    setDeleting(true);
-    // select() so that a delete RLS silently skipped shows up as zero rows.
-    const { data, error: deleteError } = await supabase.from('menu_items').delete().eq('id', item.id).select('id');
-    setDeleting(false);
-    if (deleteError || data.length === 0) {
-      console.error(deleteError ?? 'Menu item was not deleted');
-      setError(t('partner.menu.deleteFailed'));
+    setSaving(true);
+    const { data, error: updateError } = await supabase
+      .from('restaurants')
+      .update({ accepting_orders: accepting })
+      .eq('id', restaurant.id)
+      .select('*, is_open')
+      .single();
+    setSaving(false);
+    if (updateError) {
+      console.error(updateError);
+      setError(t('partner.error.saveFailed'));
       return;
     }
-    deleteStoredImage(item.image);
-    onDeleted(item.id);
+    onRestaurantChange(data);
   }
 
-  if (editing) {
-    return (
-      <li className="py-4">
-        <div className="rounded-card border border-primary-500/40 bg-bg/40 p-4">
-          <MenuItemForm
-            item={item}
-            categories={categories}
-            onSaved={(saved) => {
-              onUpdated(saved);
-              setEditing(false);
-            }}
-            onCancel={() => setEditing(false)}
-          />
-        </div>
-      </li>
-    );
-  }
+  let state = 'open';
+  if (!restaurant.accepting_orders) state = 'paused';
+  else if (!restaurant.is_open) state = 'closed';
 
   return (
-    <li className="flex items-center gap-3 py-3">
-      <FoodImage
-        src={item.image}
-        alt={item.name}
-        iconSize={18}
-        className="h-14 w-14 flex-shrink-0 rounded-[calc(var(--radius-card)-0.5rem)] object-cover"
-      />
-      <div className="min-w-0 flex-1">
-        <p className="font-medium text-text">{item.name}</p>
-        {item.description && <p className="truncate text-sm text-text-muted">{item.description}</p>}
-        <p className="text-sm font-semibold text-primary-300">{formatPrice(item.price)}</p>
+    <section className="flex flex-col gap-3 rounded-card border border-border bg-surface/70 p-4 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="flex items-center gap-2 font-semibold text-text">
+          <span className={`h-2.5 w-2.5 rounded-full ${ORDERING_DOT[state]}`} />
+          {t(`partner.ordering.${state}`)}
+        </p>
+        <p className="text-sm text-text-muted">{t(`partner.ordering.${state}Hint`)}</p>
         {error && <p className="text-sm text-danger">{error}</p>}
       </div>
-      <div className="flex flex-shrink-0 items-center gap-1">
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          disabled={deleting}
-          aria-label={t('partner.menu.edit', { name: item.name })}
-          title={t('partner.menu.edit', { name: item.name })}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-hover hover:text-primary-300"
-        >
-          <Pencil size={16} />
-        </button>
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={deleting}
-          aria-label={t('partner.menu.delete', { name: item.name })}
-          title={t('partner.menu.delete', { name: item.name })}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-hover hover:text-danger disabled:opacity-50"
-        >
-          <Trash2 size={16} />
-        </button>
-      </div>
-    </li>
+      <Switch
+        checked={restaurant.accepting_orders}
+        onChange={setAccepting}
+        disabled={saving}
+        label={t('partner.ordering.accepting')}
+        className="flex-shrink-0"
+      />
+    </section>
   );
 }
 

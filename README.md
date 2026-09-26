@@ -37,11 +37,12 @@ You need Node.js 20.19 or newer and access to the Zelfora Supabase project.
 The website talks to Supabase directly from the browser. The anon key is public by design, so the data is protected by Row Level Security (RLS) policies in the database.
 
 - `supabase/schema.sql` is a reference copy of the database tables. It is not meant to be run.
-- `supabase/restaurant_owners.sql` lets restaurant owners register a restaurant, manage its menu items and change its photo, and keeps new restaurants hidden until they are approved.
+- `supabase/restaurant_owners.sql` lets restaurant owners register a restaurant and manage it: its details, photo, opening hours and menu. It keeps new restaurants hidden until they are approved, and name changes waiting until they are approved.
+- `supabase/orders.sql` sets up orders: the delivery details, who can see and update orders, a trigger that checks every order and recalculates its prices on the server, and live updates.
 - `supabase/images.sql` creates the `images` storage bucket for uploaded photos and adds profile photos.
-- `supabase/auth_hardening.sql` sets up the order policies and a trigger that checks every order and recalculates its prices on the server.
+- `supabase/auth_hardening.sql` turns on Row Level Security for the restaurant, menu and order tables.
 
-Run them in the Supabase SQL Editor in this order: `restaurant_owners.sql`, `auth_hardening.sql`, `images.sql`. All three are safe to run more than once, so after a change you can simply run the changed file again.
+Run them in the Supabase SQL Editor in this order: `restaurant_owners.sql`, `orders.sql`, `auth_hardening.sql`, `images.sql`. All four are safe to run more than once, so after a change you can simply run the changed file again.
 
 ### Database access for Claude Code
 
@@ -50,6 +51,8 @@ Run them in the Supabase SQL Editor in this order: `restaurant_owners.sql`, `aut
 ### Approving a restaurant
 
 A newly registered restaurant is only visible to its owner. To put it online, open the `restaurants` table in the Supabase Table Editor and set `published` to `true`. To give an existing restaurant to an owner, set its `owner_id` to the owner's user id.
+
+When the owner of a published restaurant changes its name, the new name waits in `requested_name` (filter the table on `requested_name` is not null to find these). To approve it, copy it into `name`; the request then clears itself. To reject it, empty `requested_name`.
 
 ### Email confirmation links
 
@@ -60,9 +63,10 @@ After signing up, the confirmation email sends new users back to the page they c
 ```
 src/
   pages/        one component per route (home, restaurant, cart, orders, profile, login, partner)
-  components/   shared UI such as the navbar, cards and switchers
+  components/   shared UI such as the navbar, cards and switchers, and the restaurant portal's tabs
   context/      app-wide state: auth, cart, language and theme
-  services/     image resizing, uploads and clean-up
+  hooks/        the restaurant portal's live order list
+  services/     images, orders (statuses, live updates) and opening hours
   i18n/         translations for nl, en and de
 supabase/       database schema and SQL scripts
 ```

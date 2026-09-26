@@ -12,11 +12,18 @@ function RestaurantCard({ restaurant }) {
       to={`/restaurant/${restaurant.id}`}
       className="group block overflow-hidden rounded-card border border-border bg-surface/70 backdrop-blur-md transition-all duration-200 hover:-translate-y-1 hover:border-primary-500/60 hover:shadow-glow"
     >
-      <FoodImage
-        src={restaurant.image}
-        alt={restaurant.name}
-        className="h-44 w-full object-cover"
-      />
+      <div className="relative">
+        <FoodImage
+          src={restaurant.image}
+          alt={restaurant.name}
+          className={`h-44 w-full object-cover ${restaurant.is_open === false ? 'opacity-50 grayscale' : ''}`}
+        />
+        {restaurant.is_open === false && (
+          <span className="absolute left-3 top-3 rounded-pill border border-border bg-bg-elevated/90 px-3 py-1 text-xs font-semibold text-text backdrop-blur-md">
+            {t('restaurant.closedBadge')}
+          </span>
+        )}
+      </div>
       <div className="p-4">
         <div className="mb-2 flex items-center justify-between gap-2">
           <h3 className="font-display text-lg font-semibold text-text">{restaurant.name}</h3>

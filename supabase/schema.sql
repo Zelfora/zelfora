@@ -3,12 +3,20 @@
 -- Reference only; do not run. Update this file whenever the schema changes.
 -- restaurants.owner_id/published, profiles.avatar_url and the CHECK
 -- constraints were added by hand from restaurant_owners.sql and images.sql;
--- re-export after running them to confirm.
+-- re-export after running them to confirm. The same goes for the columns
+-- added on 2026-09-26 by restaurant_owners.sql (requested_name,
+-- accepting_orders, opening_hours, menu_items.available/position) and
+-- orders.sql (the delivery details and delivery_fee on orders).
 --
 -- Not included in this export:
---   - RLS policies and the order-validation trigger: see auth_hardening.sql
---   - Owner policies, the prepare_new_restaurant trigger, the column grant on
---     restaurants and the unique index restaurants_one_per_owner: see
+--   - RLS policies and triggers: see restaurant_owners.sql (restaurants and
+--     menu_items: owner policies, the prepare_new_restaurant and
+--     handle_name_request triggers, the column grant on restaurants, the
+--     unique index restaurants_one_per_owner) and orders.sql (orders
+--     policies, the column grant, the validate_order and
+--     check_order_status_change triggers, the Realtime publication)
+--   - Functions: valid_opening_hours, is_within_opening_hours, is_open (a
+--     computed column on restaurants) and reorder_menu_items in
 --     restaurant_owners.sql
 --   - The "images" Storage bucket and its policies: see images.sql
 --   - profiles RLS, set up in the dashboard: RLS enabled, with policies
@@ -17,7 +25,8 @@
 --   - The trigger on_auth_user_created on auth.users, which calls
 --     public.handle_new_user() (SECURITY DEFINER) to insert a profiles row
 --     (id, email) on signup; it lives only in the dashboard
---   - The element type of restaurants.tags (the export shows just ARRAY)
+--   - The element type of restaurants.tags (the export shows just ARRAY; it
+--     is text[])
 
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
@@ -45,11 +54,16 @@ CREATE TABLE public.restaurants (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   owner_id uuid,
   published boolean NOT NULL DEFAULT false,
+  requested_name text,
+  accepting_orders boolean NOT NULL DEFAULT true,
+  opening_hours jsonb,
   CONSTRAINT restaurants_pkey PRIMARY KEY (id),
   CONSTRAINT restaurants_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES public.profiles(id),
   CONSTRAINT restaurants_text_lengths CHECK (char_length(btrim(name)) >= 1 AND char_length(btrim(name)) <= 100 AND char_length(cuisine) <= 50 AND char_length(address) <= 200 AND char_length(description) <= 1000 AND char_length(delivery_time) <= 30 AND char_length(image) <= 2000),
   CONSTRAINT restaurants_delivery_fee_range CHECK (delivery_fee >= 0::numeric AND delivery_fee < 100::numeric AND delivery_fee = round(delivery_fee, 2)),
-  CONSTRAINT restaurants_image_https CHECK (image ~* '^https://'::text)
+  CONSTRAINT restaurants_image_https CHECK (image ~* '^https://'::text),
+  CONSTRAINT restaurants_requested_name_length CHECK (char_length(btrim(requested_name)) >= 1 AND char_length(btrim(requested_name)) <= 100),
+  CONSTRAINT restaurants_opening_hours_valid CHECK (valid_opening_hours(opening_hours))
 );
 CREATE TABLE public.menu_items (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -60,6 +74,8 @@ CREATE TABLE public.menu_items (
   category text,
   image text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
+  available boolean NOT NULL DEFAULT true,
+  position integer,
   CONSTRAINT menu_items_pkey PRIMARY KEY (id),
   CONSTRAINT menu_items_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id),
   CONSTRAINT menu_items_text_lengths CHECK (char_length(btrim(name)) >= 1 AND char_length(btrim(name)) <= 100 AND char_length(category) <= 50 AND char_length(description) <= 500 AND char_length(image) <= 2000),
@@ -74,7 +90,14 @@ CREATE TABLE public.orders (
   total numeric NOT NULL,
   status text NOT NULL DEFAULT 'placed'::text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
+  customer_name text,
+  phone text,
+  delivery_address text,
+  note text,
+  delivery_fee numeric NOT NULL DEFAULT 0,
   CONSTRAINT orders_pkey PRIMARY KEY (id),
   CONSTRAINT orders_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
-  CONSTRAINT orders_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id)
+  CONSTRAINT orders_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id),
+  CONSTRAINT orders_text_lengths CHECK (char_length(customer_name) <= 100 AND char_length(phone) <= 30 AND char_length(delivery_address) <= 200 AND char_length(note) <= 500),
+  CONSTRAINT orders_status_valid CHECK (status = ANY (ARRAY['placed'::text, 'preparing'::text, 'delivering'::text, 'delivered'::text, 'cancelled'::text]))
 );

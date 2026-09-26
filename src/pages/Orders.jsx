@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
 import { useTranslation } from '../context/LanguageContext';
+import OrderStatusBadge from '../components/OrderStatusBadge';
+import { orderNumber, subscribeToOrders } from '../services/orders';
 
 function Orders() {
   const { user } = useAuth();
-  const { t, has, formatPrice, formatDate } = useTranslation();
+  const { t, formatPrice, formatDate } = useTranslation();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -21,6 +23,15 @@ function Orders() {
     }
     loadOrders();
   }, [user.id]);
+
+  // The restaurant updates the status from its portal; show it as it happens.
+  useEffect(
+    () =>
+      subscribeToOrders(`user_id=eq.${user.id}`, (row) => {
+        setOrders((current) => current.map((order) => (order.id === row.id ? { ...order, ...row } : order)));
+      }),
+    [user.id]
+  );
 
   if (loading) {
     return <main className="px-4 py-16 text-center text-text-muted md:px-8">{t('orders.loading')}</main>;
@@ -40,11 +51,13 @@ function Orders() {
       <div className="flex flex-col gap-4">
         {orders.map((order) => (
           <div key={order.id} className="rounded-card border border-border bg-surface/70 p-4">
-            <div className="mb-2 flex items-center justify-between">
+            <div className="mb-2 flex items-center justify-between gap-3">
               <p className="font-semibold text-text">{order.restaurants?.name ?? t('orders.restaurantFallback')}</p>
-              <span className="rounded-pill bg-surface px-2 py-1 text-xs text-text-muted">{has(`orders.status.${order.status}`) ? t(`orders.status.${order.status}`) : order.status}</span>
+              <OrderStatusBadge status={order.status} />
             </div>
-            <p className="text-sm text-text-muted">{formatDate(order.created_at, { dateStyle: 'medium', timeStyle: 'short' })}</p>
+            <p className="text-sm text-text-muted">
+              {formatDate(order.created_at, { dateStyle: 'medium', timeStyle: 'short' })} · #{orderNumber(order)}
+            </p>
             <ul className="mt-2 text-sm text-text-muted">
               {order.items.map((item) => (
                 <li key={item.menu_item_id}>
@@ -52,6 +65,11 @@ function Orders() {
                 </li>
               ))}
             </ul>
+            {Number(order.delivery_fee) > 0 && (
+              <p className="mt-2 text-sm text-text-muted">
+                {t('orders.deliveryFee', { fee: formatPrice(order.delivery_fee) })}
+              </p>
+            )}
             <p className="mt-2 font-semibold text-primary-300">{formatPrice(order.total)}</p>
           </div>
         ))}

@@ -5,6 +5,7 @@ import { supabase } from '../supabaseClient';
 import StarRating from '../components/StarRating';
 import MenuItemCard from '../components/MenuItemCard';
 import FoodImage from '../components/FoodImage';
+import OpeningHoursList from '../components/OpeningHoursList';
 import { useTranslation } from '../context/LanguageContext';
 
 function RestaurantDetail() {
@@ -18,8 +19,14 @@ function RestaurantDetail() {
     async function load() {
       setLoading(true);
       const [{ data: restaurantData }, { data: menuData }] = await Promise.all([
-        supabase.from('restaurants').select('*').eq('id', id).maybeSingle(),
-        supabase.from('menu_items').select('*').eq('restaurant_id', id),
+        supabase.from('restaurants').select('*, is_open').eq('id', id).maybeSingle(),
+        // In the order the owner chose; items they never moved come last.
+        supabase
+          .from('menu_items')
+          .select('*')
+          .eq('restaurant_id', id)
+          .order('position', { nullsFirst: false })
+          .order('created_at'),
       ]);
       setRestaurant(restaurantData);
       setMenu(menuData ?? []);
@@ -46,6 +53,7 @@ function RestaurantDetail() {
   const categories = [...new Set(menu.map((item) => item.category))];
   // Only the owner can load an unpublished restaurant; customers get "not found".
   const preview = restaurant.published === false;
+  const closed = !preview && !restaurant.is_open;
 
   return (
     <main>
@@ -94,6 +102,15 @@ function RestaurantDetail() {
           </div>
         )}
 
+        {restaurant.opening_hours && (
+          <details className="mb-8" open={closed}>
+            <summary className="mb-2 cursor-pointer text-sm font-semibold text-text hover:text-primary-300">
+              {t('restaurant.openingHours')}
+            </summary>
+            <OpeningHoursList hours={restaurant.opening_hours} />
+          </details>
+        )}
+
         {preview && (
           <div className="mb-8 flex flex-col gap-2 rounded-card border border-warn-400/50 bg-warn-400/10 p-4 text-sm text-text sm:flex-row sm:items-center sm:justify-between">
             <p>{t('restaurant.previewNotice')}</p>
@@ -101,6 +118,12 @@ function RestaurantDetail() {
               {t('restaurant.previewManage')} &rarr;
             </Link>
           </div>
+        )}
+
+        {closed && (
+          <p className="mb-8 rounded-card border border-warn-400/50 bg-warn-400/10 p-4 text-sm text-text">
+            {t(restaurant.accepting_orders ? 'restaurant.closedNotice' : 'restaurant.pausedNotice')}
+          </p>
         )}
 
         <h2 className="mb-4 font-display text-2xl font-semibold text-text">{t('restaurant.menu')}</h2>
@@ -113,7 +136,7 @@ function RestaurantDetail() {
                 {menu
                   .filter((item) => item.category === category)
                   .map((item) => (
-                    <MenuItemCard key={item.id} item={item} restaurant={restaurant} orderable={!preview} />
+                    <MenuItemCard key={item.id} item={item} restaurant={restaurant} orderable={!preview && !closed} />
                   ))}
               </div>
             </div>

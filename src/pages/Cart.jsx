@@ -1,20 +1,86 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
 import { useTranslation } from '../context/LanguageContext';
+import FormField from '../components/FormField';
+import { inputClass, primaryButtonClass, textareaClass } from '../components/formHelpers';
+import { orderErrorMessage } from '../services/orders';
+
+const EMPTY_DETAILS = { customer_name: '', phone: '', delivery_address: '', note: '' };
 
 function Cart() {
   const { restaurantId, restaurantName, items, updateQuantity, removeItem, clearCart, subtotal } = useCart();
   const { user } = useAuth();
-  const { t, formatPrice } = useTranslation();
+  const i18n = useTranslation();
+  const { t, formatPrice } = i18n;
   const navigate = useNavigate();
+  const [details, setDetails] = useState(EMPTY_DETAILS);
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState('');
 
-  async function handlePlaceOrder() {
+  // The restaurant's current delivery fee and whether it's open, tagged with
+  // its id so a previous cart's restaurant never shows.
+  const [loadedRestaurant, setLoadedRestaurant] = useState({ id: null, data: null });
+  const restaurant = restaurantId && loadedRestaurant.id === restaurantId ? loadedRestaurant.data : null;
+
+  useEffect(() => {
+    if (!restaurantId) return;
+    let ignore = false;
+    supabase
+      .from('restaurants')
+      .select('delivery_fee, accepting_orders, is_open')
+      .eq('id', restaurantId)
+      .maybeSingle()
+      .then(({ data, error: loadError }) => {
+        if (loadError) console.error(loadError);
+        if (!ignore) setLoadedRestaurant({ id: restaurantId, data });
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [restaurantId]);
+
+  // Fill in the details from the customer's last order, without overwriting
+  // anything they've typed already.
+  useEffect(() => {
+    let ignore = false;
+    supabase
+      .from('orders')
+      .select('customer_name, phone, delivery_address')
+      .eq('user_id', user.id)
+      .not('delivery_address', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (ignore || !data) return;
+        setDetails((current) => ({
+          ...current,
+          customer_name: current.customer_name || data.customer_name || '',
+          phone: current.phone || data.phone || '',
+          delivery_address: current.delivery_address || data.delivery_address || '',
+        }));
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [user.id]);
+
+  function update(field) {
+    return (e) => setDetails((current) => ({ ...current, [field]: e.target.value }));
+  }
+
+  const deliveryFee = restaurant ? Number(restaurant.delivery_fee) : null;
+  const closed = restaurant ? !restaurant.is_open : false;
+
+  // The database recomputes prices, the delivery fee and the total
+  // (validate_order in orders.sql), and rejects the order if the restaurant
+  // is closed or a dish is sold out.
+  async function handlePlaceOrder(e) {
+    e.preventDefault();
     setPlacing(true);
     setError('');
     try {
@@ -22,13 +88,18 @@ function Cart() {
         user_id: user.id,
         restaurant_id: restaurantId,
         items: items.map(({ id, name, price, quantity }) => ({ menu_item_id: id, name, price, quantity })),
-        total: subtotal,
+        total: subtotal + (deliveryFee ?? 0),
+        customer_name: details.customer_name.trim(),
+        phone: details.phone.trim(),
+        delivery_address: details.delivery_address.trim(),
+        note: details.note.trim() || null,
       });
       if (insertError) throw insertError;
       clearCart();
       navigate('/orders');
     } catch (err) {
-      setError(err.message);
+      console.error(err);
+      setError(orderErrorMessage(err, i18n));
     } finally {
       setPlacing(false);
     }
@@ -85,20 +156,92 @@ function Cart() {
         ))}
       </div>
 
-      <div className="mt-6 flex items-center justify-between border-t border-border pt-4 text-lg font-semibold text-text">
-        <span>{t('cart.total')}</span>
-        <span>{formatPrice(subtotal)}</span>
-      </div>
+      <dl className="mt-6 flex flex-col gap-1 border-t border-border pt-4 text-sm text-text-muted">
+        <div className="flex justify-between">
+          <dt>{t('cart.subtotal')}</dt>
+          <dd>{formatPrice(subtotal)}</dd>
+        </div>
+        <div className="flex justify-between">
+          <dt>{t('cart.deliveryFee')}</dt>
+          <dd>{deliveryFee === null ? '…' : deliveryFee === 0 ? t('cart.freeDelivery') : formatPrice(deliveryFee)}</dd>
+        </div>
+        <div className="mt-1 flex justify-between text-lg font-semibold text-text">
+          <dt>{t('cart.total')}</dt>
+          <dd>{formatPrice(subtotal + (deliveryFee ?? 0))}</dd>
+        </div>
+      </dl>
 
-      {error && <p className="mt-3 text-sm text-danger">{error}</p>}
-
-      <button
-        onClick={handlePlaceOrder}
-        disabled={placing}
-        className="mt-6 w-full rounded-pill bg-gradient-to-r from-primary-500 to-accent-500 px-5 py-3 font-semibold text-white shadow-glow transition-transform hover:scale-[1.01] disabled:opacity-60"
+      <form
+        onSubmit={handlePlaceOrder}
+        className="mt-8 grid grid-cols-1 gap-4 rounded-card border border-border bg-surface/70 p-6 backdrop-blur-md sm:grid-cols-2"
       >
-        {placing ? t('cart.placing') : t('cart.placeOrder')}
-      </button>
+        <h2 className="font-display text-lg font-semibold text-text sm:col-span-2">{t('cart.detailsTitle')}</h2>
+
+        <FormField label={t('cart.field.name')}>
+          <input
+            name="name"
+            required
+            maxLength={100}
+            autoComplete="name"
+            value={details.customer_name}
+            onChange={update('customer_name')}
+            className={inputClass}
+          />
+        </FormField>
+
+        <FormField label={t('cart.field.phone')}>
+          <input
+            name="phone"
+            type="tel"
+            required
+            maxLength={30}
+            autoComplete="tel"
+            value={details.phone}
+            onChange={update('phone')}
+            className={inputClass}
+          />
+        </FormField>
+
+        <FormField label={t('cart.field.address')} className="sm:col-span-2">
+          <input
+            name="address"
+            required
+            maxLength={200}
+            autoComplete="street-address"
+            placeholder={t('cart.field.addressPlaceholder')}
+            value={details.delivery_address}
+            onChange={update('delivery_address')}
+            className={inputClass}
+          />
+        </FormField>
+
+        <FormField label={t('cart.field.note')} optional className="sm:col-span-2">
+          <textarea
+            name="note"
+            rows={2}
+            maxLength={500}
+            placeholder={t('cart.field.notePlaceholder')}
+            value={details.note}
+            onChange={update('note')}
+            className={textareaClass}
+          />
+        </FormField>
+
+        {closed && (
+          <p className="rounded-card border border-warn-400/50 bg-warn-400/10 p-4 text-sm text-text sm:col-span-2">
+            {t(restaurant.accepting_orders ? 'restaurant.closedNotice' : 'restaurant.pausedNotice')}
+          </p>
+        )}
+        {error && <p className="text-sm text-danger sm:col-span-2">{error}</p>}
+
+        <button
+          type="submit"
+          disabled={placing || closed}
+          className={`mt-2 w-full sm:col-span-2 ${primaryButtonClass}`}
+        >
+          {placing ? t('cart.placing') : t('cart.placeOrder')}
+        </button>
+      </form>
     </main>
   );
 }

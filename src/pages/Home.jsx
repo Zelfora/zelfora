@@ -12,12 +12,14 @@ function Home() {
 
   useEffect(() => {
     async function load() {
+      // is_open is a computed column (restaurant_owners.sql).
       const { data, error } = await supabase
         .from('restaurants')
-        .select('*')
+        .select('*, is_open')
         .eq('published', true)
         .order('name');
-      if (!error) setRestaurants(data);
+      // Open restaurants first; the sort is stable, so each group stays alphabetical.
+      if (!error) setRestaurants(data.sort((a, b) => Number(b.is_open) - Number(a.is_open)));
       setLoading(false);
     }
     load();
