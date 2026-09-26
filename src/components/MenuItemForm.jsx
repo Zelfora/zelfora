@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useTranslation } from '../context/LanguageContext';
 import FormField from './FormField';
@@ -21,7 +21,11 @@ import { optionGroups } from '../services/menuOptions';
 const MIN_PRICE = 0.01;
 const MAX_PRICE = 999.99;
 
-const EMPTY_FORM = { name: '', price: '', category: '', description: '', image: '', options: [] };
+// The "new category" choice in the category menu. Categories are trimmed when
+// saved, so none can start with a space.
+const NEW_CATEGORY = ' new';
+
+const EMPTY_FORM = { name: '', price: '', category: '', newCategory: false, description: '', image: '', options: [] };
 
 // Adds a dish to the owner's restaurant, or edits one when item is given.
 // RLS only accepts changes to items of a restaurant the signed-in user owns.
@@ -36,6 +40,7 @@ function MenuItemForm({ restaurantId, item = null, categories, menu, onSaved, on
           name: item.name,
           price: formatLocalAmount(item.price),
           category: item.category ?? '',
+          newCategory: false,
           description: item.description ?? '',
           image: item.image ?? '',
           options: toEditableOptions(optionGroups(item), formatLocalAmount),
@@ -46,10 +51,18 @@ function MenuItemForm({ restaurantId, item = null, categories, menu, onSaved, on
   const [info, setInfo] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const nameRef = useRef(null);
-  const categoryListId = useId();
 
   function update(field) {
     return (e) => setForm((current) => ({ ...current, [field]: e.target.value }));
+  }
+
+  function chooseCategory(e) {
+    const choice = e.target.value;
+    setForm((current) =>
+      choice === NEW_CATEGORY
+        ? { ...current, category: '', newCategory: true }
+        : { ...current, category: choice, newCategory: false }
+    );
   }
 
   function setImage(image) {
@@ -62,13 +75,35 @@ function MenuItemForm({ restaurantId, item = null, categories, menu, onSaved, on
 
   const copySources = menu.filter((dish) => dish.id !== item?.id && optionGroups(dish).length > 0);
 
+  // The select needs an option for the chosen category, also when no dish is
+  // left in it (the add form keeps the category it last used).
+  const categoryOptions =
+    form.category && !form.newCategory && !categories.includes(form.category)
+      ? [...categories, form.category]
+      : categories;
+
+  // The text field for a category name, when there's none to choose or the
+  // owner chose to add one.
+  const newCategoryProps = {
+    required: true,
+    maxLength: 50,
+    autoComplete: 'off',
+    placeholder: t('partner.field.categoryPlaceholder'),
+    value: form.category,
+    onChange: update('category'),
+    className: inputClass,
+  };
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
     setInfo('');
 
     const name = form.name.trim();
-    const category = form.category.trim();
+    const typedCategory = form.category.trim();
+    // A new category typed like an existing one ("burgers" for "Burgers") joins it.
+    const category =
+      categories.find((existing) => existing.toLowerCase() === typedCategory.toLowerCase()) ?? typedCategory;
     const price = parseAmount(form.price);
 
     if (!name || !category) {
@@ -155,24 +190,39 @@ function MenuItemForm({ restaurantId, item = null, categories, menu, onSaved, on
         />
       </FormField>
 
-      <FormField label={t('partner.field.category')}>
-        <input
-          name="category"
-          required
-          maxLength={50}
-          autoComplete="off"
-          list={categoryListId}
-          placeholder={t('partner.field.categoryPlaceholder')}
-          value={form.category}
-          onChange={update('category')}
-          className={inputClass}
-        />
-        <datalist id={categoryListId}>
-          {categories.map((c) => (
-            <option key={c} value={c} />
-          ))}
-        </datalist>
-      </FormField>
+      {/* A select, not a datalist: browsers filter a datalist by the text in
+          the field, so it only offered the current category. */}
+      {categoryOptions.length === 0 ? (
+        <FormField label={t('partner.field.category')}>
+          <input name="category" {...newCategoryProps} />
+        </FormField>
+      ) : (
+        <div className="flex min-w-0 flex-col gap-2">
+          <FormField label={t('partner.field.category')}>
+            <select
+              name="category"
+              required
+              value={form.newCategory ? NEW_CATEGORY : form.category}
+              onChange={chooseCategory}
+              className={`min-w-0 cursor-pointer ${inputClass}`}
+            >
+              <option value="" disabled>
+                {t('partner.field.chooseCategory')}
+              </option>
+              {categoryOptions.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+              <option value={NEW_CATEGORY}>{t('partner.field.newCategory')}</option>
+            </select>
+          </FormField>
+          {/* Appears when "new category" is chosen, ready to type in. */}
+          {form.newCategory && (
+            <input name="new-category" aria-label={t('partner.field.newCategoryName')} autoFocus {...newCategoryProps} />
+          )}
+        </div>
+      )}
 
       <FormField label={t('partner.field.description')} optional className="sm:col-span-2">
         <textarea

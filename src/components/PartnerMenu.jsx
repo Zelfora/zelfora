@@ -20,6 +20,8 @@ function PartnerMenu({ restaurant }) {
   const [status, setStatus] = useState('loading'); // 'loading' | 'ready' | 'error'
   const [orderError, setOrderError] = useState('');
   const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved'
+  // A dish that just moved to another category through its form.
+  const [movedId, setMovedId] = useState(null);
   // Reorders are saved one after another, so a quick series of moves arrives in order.
   const saveQueue = useRef(Promise.resolve());
   const pendingSaves = useRef(0);
@@ -49,8 +51,32 @@ function PartnerMenu({ restaurant }) {
     return () => clearTimeout(timer);
   }, [saveStatus]);
 
+  // Long enough for the scroll and the highlight (MenuItemRow).
+  useEffect(() => {
+    if (!movedId) return;
+    const timer = setTimeout(() => setMovedId(null), 1500);
+    return () => clearTimeout(timer);
+  }, [movedId]);
+
   function replaceItem(saved) {
     setMenu((current) => current.map((item) => (item.id === saved.id ? saved : item)));
+  }
+
+  // After a dish was saved. One that got another category moves to the end
+  // of that category, or of the menu for a new category. Left in its old
+  // place, it could move its new category up, because a category sits where
+  // its first dish is.
+  function updateItem(saved) {
+    const previous = menu.find((item) => item.id === saved.id);
+    if (!previous || previous.category === saved.category) {
+      replaceItem(saved);
+      return;
+    }
+    const others = menu.filter((item) => item.id !== saved.id);
+    const lastInCategory = others.findLastIndex((item) => item.category === saved.category);
+    const at = lastInCategory === -1 ? others.length : lastInCategory + 1;
+    saveOrder([...others.slice(0, at), saved, ...others.slice(at)]);
+    setMovedId(saved.id);
   }
 
   function removeItem(id) {
@@ -60,7 +86,7 @@ function PartnerMenu({ restaurant }) {
   const categories = [...new Set(menu.map((item) => item.category).filter(Boolean))];
 
   // items is the whole menu in its new order. moved = { id, category } when a
-  // dish was dragged into another category.
+  // dish was dragged into another category (its form saves its own).
   function saveOrder(items, moved) {
     setOrderError('');
     // Numbered from 1, like reorder_menu_items does.
@@ -145,7 +171,8 @@ function PartnerMenu({ restaurant }) {
               handle={handle}
               categories={categories}
               menu={menu}
-              onUpdated={replaceItem}
+              highlighted={item.id === movedId}
+              onUpdated={updateItem}
               onDeleted={removeItem}
             />
           )}
@@ -157,12 +184,21 @@ function PartnerMenu({ restaurant }) {
 
 // One dish in the owner's menu: edit it, mark it as sold out or delete it
 // right there in the list. handle is its drag handle for reordering.
-function MenuItemRow({ item, handle, categories, menu, onUpdated, onDeleted }) {
+// highlighted: it just moved to another category, so it's scrolled into view
+// and lights up.
+function MenuItemRow({ item, handle, categories, menu, highlighted = false, onUpdated, onDeleted }) {
   const { t, formatPrice } = useTranslation();
   const groups = optionGroups(item);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const rowRef = useRef(null);
+
+  useEffect(() => {
+    if (!highlighted) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    rowRef.current?.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
+  }, [highlighted]);
 
   async function handleDelete() {
     if (!window.confirm(t('partner.menu.confirmDelete', { name: item.name }))) return;
@@ -216,7 +252,13 @@ function MenuItemRow({ item, handle, categories, menu, onUpdated, onDeleted }) {
   }
 
   return (
-    <div className="flex items-center gap-2 rounded-card border border-border/70 bg-bg/40 py-2 pr-2 pl-1 sm:gap-3">
+    <div
+      ref={rowRef}
+      className="relative flex items-center gap-2 rounded-card border border-border/70 bg-bg/40 py-2 pr-2 pl-1 sm:gap-3"
+    >
+      {highlighted && (
+        <span aria-hidden="true" className="cart-line-flash pointer-events-none absolute inset-0 rounded-card" />
+      )}
       {handle}
       <FoodImage
         src={item.image}

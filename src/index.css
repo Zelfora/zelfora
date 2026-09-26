@@ -224,7 +224,8 @@
       opacity: 0;
     }
   }
-  /* The line that was just added lights up for a moment. */
+  /* The line that was just added lights up for a moment. The portal uses it
+     too, for a dish that moved to another category through its form. */
   .cart-line-flash {
     animation: cart-line-flash 1400ms ease-out forwards;
   }

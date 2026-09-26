@@ -12,6 +12,7 @@ import PartnerSettings from '../components/PartnerSettings';
 import RestaurantForm from '../components/RestaurantForm';
 import Switch from '../components/Switch';
 import { cardClass, noticeClass, primaryButtonClass } from '../components/formHelpers';
+import { useOrdersLayout } from '../hooks/useOrdersLayout';
 import { useOwnerOrders } from '../hooks/useOwnerOrders';
 import { updateRestaurant } from '../services/restaurants';
 
@@ -133,7 +134,11 @@ function PartnerPortal({ restaurant, onRestaurantChange }) {
   const { tab = '' } = useParams();
   const { t } = useTranslation();
   const ordersState = useOwnerOrders(restaurant.id);
+  const ordersLayout = useOrdersLayout();
   const newCount = ordersState.orders.filter((order) => order.status === 'placed').length;
+  // Order tiles use the extra width for more columns. The list, the menu and
+  // the settings read better narrow.
+  const wide = tab === '' && ordersLayout.view === 'tiles';
 
   useEffect(() => {
     const timer = setInterval(async () => {
@@ -159,7 +164,7 @@ function PartnerPortal({ restaurant, onRestaurantChange }) {
   }
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-10 md:px-8">
+    <main className={`mx-auto flex flex-col gap-6 px-4 py-10 md:px-8 ${wide ? 'max-w-6xl' : 'max-w-3xl'}`}>
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-text-faint">{t('partner.dashboard.label')}</p>
@@ -212,7 +217,9 @@ function PartnerPortal({ restaurant, onRestaurantChange }) {
         ))}
       </nav>
 
-      {tab === '' && <PartnerOrders ordersState={ordersState} published={restaurant.published} />}
+      {tab === '' && (
+        <PartnerOrders ordersState={ordersState} layout={ordersLayout} published={restaurant.published} />
+      )}
       {tab === 'menu' && <PartnerMenu restaurant={restaurant} />}
       {tab === 'settings' && <PartnerSettings restaurant={restaurant} onRestaurantChange={onRestaurantChange} />}
     </main>
