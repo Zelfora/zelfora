@@ -253,6 +253,22 @@
       box-shadow: inset 0 0 0 2px transparent;
     }
   }
+  /* RestaurantDetail: the dishes that matched the home page search light up
+     while the page scrolls to the first, then slowly fade back into the
+     card's own style. Keep the duration in step with SEARCH_FLASH_MS there. */
+  .menu-card-flash {
+    animation: menu-card-flash 4000ms ease-out;
+  }
+  @keyframes menu-card-flash {
+    8%,
+    50% {
+      border-color: var(--color-primary-400);
+      background-color: color-mix(in oklab, var(--color-primary-500) 20%, var(--color-surface));
+      box-shadow:
+        0 0 0 1px var(--color-primary-400),
+        var(--shadow-glow-lg);
+    }
+  }
   /* MenuItemDialog: the "adding this starts a new order" notice lights up
      once the dialog has opened, then settles back into plain text. */
   .notice-flash {

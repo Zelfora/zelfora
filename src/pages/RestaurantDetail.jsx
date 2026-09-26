@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Clock, Bike } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import StarRating from '../components/StarRating';
@@ -13,6 +13,10 @@ import { noticeClass } from '../components/formHelpers';
 import { useTranslation } from '../context/LanguageContext';
 import { closedNoticeKey, fetchMenu } from '../services/restaurants';
 
+// How long the dishes that matched the home page search stay lit: the length
+// of .menu-card-flash in index.css.
+const SEARCH_FLASH_MS = 4000;
+
 async function fetchRestaurant(id) {
   const { data, error } = await supabase.from('restaurants').select('*, is_open').eq('id', id).maybeSingle();
   if (error) throw error;
@@ -21,6 +25,8 @@ async function fetchRestaurant(id) {
 
 function RestaurantDetail() {
   const { id } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { t, formatPrice } = useTranslation();
   const [restaurant, setRestaurant] = useState(null);
   const [menu, setMenu] = useState([]);
@@ -28,6 +34,11 @@ function RestaurantDetail() {
   // The dish in the dialog. It stays set after closing, so the dialog can
   // animate out; openCount starts every open afresh.
   const [dialog, setDialog] = useState({ item: null, open: false, openCount: 0 });
+  // The ids of the dishes that matched the home page search, when the page
+  // was opened from a search result (RestaurantCard). Once the menu shows,
+  // they light up for a moment and the page scrolls to the first.
+  const [searchMatches, setSearchMatches] = useState(() => location.state?.searchMatches ?? null);
+  const menuRef = useRef(null);
 
   function openDish(item) {
     setDialog((current) => ({ item, open: true, openCount: current.openCount + 1 }));
@@ -59,6 +70,33 @@ function RestaurantDetail() {
       ignore = true;
     };
   }, [id]);
+
+  // Point the search matches out only once, not again after a reload or when
+  // coming back to this page.
+  useEffect(() => {
+    if (location.state?.searchMatches) {
+      navigate(location.pathname, { replace: true, state: { from: location.state.from } });
+    }
+  }, [location, navigate]);
+
+  useEffect(() => {
+    if (status !== 'ready' || !searchMatches) return;
+    const first = menuRef.current?.querySelector('[data-highlighted]');
+    if (first) {
+      // Start at the top, so the scroll shows where the dish is on the page,
+      // and end with its middle at a third of the screen: near the top, with
+      // some of the menu above it still in view.
+      window.scrollTo(0, 0);
+      const { top, height } = first.getBoundingClientRect();
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({
+        top: top + height / 2 - window.innerHeight / 3,
+        behavior: reduceMotion ? 'auto' : 'smooth',
+      });
+    }
+    const timer = setTimeout(() => setSearchMatches(null), SEARCH_FLASH_MS);
+    return () => clearTimeout(timer);
+  }, [status, searchMatches]);
 
   if (status === 'loading') {
     return <PageMessage>{t('common.loading')}</PageMessage>;
@@ -92,8 +130,9 @@ function RestaurantDetail() {
       <div className="relative h-56 w-full overflow-hidden md:h-72">
         <FoodImage src={restaurant.image} alt={restaurant.name} iconSize={48} className="h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/60 to-transparent" />
+        {/* Back to the home page, with the search when it came from there (RestaurantCard). */}
         <Link
-          to="/"
+          to={location.state?.from ?? '/'}
           className="absolute left-4 top-4 flex items-center gap-2 rounded-pill border border-border bg-bg-elevated/80 px-3 py-2 text-sm font-medium text-text backdrop-blur-md transition-colors hover:border-primary-500/60 hover:text-primary-300 md:left-8 md:top-6"
         >
           <ArrowLeft size={16} />
@@ -164,7 +203,7 @@ function RestaurantDetail() {
 
           <h2 className="mb-4 font-display text-2xl font-semibold text-text">{t('restaurant.menu')}</h2>
 
-          <div className="space-y-8">
+          <div ref={menuRef} className="space-y-8">
             {categories.map((category) => (
               <div key={category}>
                 <h3 className="mb-3 font-display text-lg font-semibold text-primary-300">
@@ -174,7 +213,13 @@ function RestaurantDetail() {
                   {menu
                     .filter((item) => item.category === category)
                     .map((item) => (
-                      <MenuItemCard key={item.id} item={item} orderable={!orderNotice} onOpen={openDish} />
+                      <MenuItemCard
+                        key={item.id}
+                        item={item}
+                        orderable={!orderNotice}
+                        highlighted={searchMatches?.includes(item.id)}
+                        onOpen={openDish}
+                      />
                     ))}
                 </div>
               </div>

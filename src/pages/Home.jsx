@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation, useNavigationType, useSearchParams } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import RestaurantCard from '../components/RestaurantCard';
@@ -11,17 +12,37 @@ function normalize(text) {
 
 function Home() {
   const { t } = useTranslation();
-  const [searchQuery, setSearchQuery] = useState('');
+  // The search is also in the address (?q=), so Back from a restaurant, or a
+  // reload, shows the same results. The input has its own state: the router
+  // updates the address in a transition, and an input following it would
+  // drop keystrokes.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') ?? '');
+  const location = useLocation();
+  const navigationType = useNavigationType();
+  const [locationKey, setLocationKey] = useState(location.key);
   const [restaurants, setRestaurants] = useState([]);
   const [status, setStatus] = useState('loading'); // 'loading' | 'ready' | 'error'
 
+  // Typing replaces the address. Any other change to it while the page is
+  // open (the navbar logo, Back and Forward) sets the search.
+  if (location.key !== locationKey) {
+    setLocationKey(location.key);
+    if (navigationType !== 'REPLACE') setSearchQuery(searchParams.get('q') ?? '');
+  }
+
+  function changeSearch(value) {
+    setSearchQuery(value);
+    setSearchParams(value.trim() ? { q: value } : {}, { replace: true });
+  }
+
   useEffect(() => {
     async function load() {
-      // is_open is a computed column (restaurant_owners.sql). The dish names,
-      // in menu order, are for the search.
+      // is_open is a computed column (restaurant_owners.sql). The dishes, in
+      // menu order, are for the search.
       const { data, error } = await supabase
         .from('restaurants')
-        .select('*, is_open, menu_items(name)')
+        .select('*, is_open, menu_items(id, name)')
         .eq('published', true)
         .order('name')
         .order('position', { referencedTable: 'menu_items', nullsFirst: false })
@@ -39,13 +60,11 @@ function Home() {
   }, []);
 
   // A restaurant matches on its name, its cuisine or one of its dishes. The
-  // matching dishes are shown on its card.
+  // matching dishes are shown on its card, and pointed out on its page.
   const query = normalize(searchQuery.trim());
   const results = restaurants.flatMap((restaurant) => {
     if (!query) return [{ restaurant, dishes: [] }];
-    const dishes = restaurant.menu_items
-      .map((item) => item.name)
-      .filter((name) => normalize(name).includes(query));
+    const dishes = restaurant.menu_items.filter((item) => normalize(item.name).includes(query));
     const matches =
       normalize(restaurant.name).includes(query) || normalize(restaurant.cuisine).includes(query);
     return matches || dishes.length > 0 ? [{ restaurant, dishes }] : [];
@@ -60,7 +79,7 @@ function Home() {
           aria-label={t('home.searchLabel')}
           placeholder={t('home.searchPlaceholder')}
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => changeSearch(e.target.value)}
           className="w-full rounded-pill border border-border bg-surface py-2.5 pl-11 pr-4 text-text placeholder:text-text-faint outline-none focus:border-primary-500 focus:shadow-glow"
         />
       </div>

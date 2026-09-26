@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Clock, Bike, Search } from 'lucide-react';
 import StarRating from './StarRating';
 import FoodImage from './FoodImage';
@@ -6,14 +6,21 @@ import { useTranslation } from '../context/LanguageContext';
 
 const MAX_SHOWN_DISHES = 3;
 
-// matchedDishes: names of the dishes that matched the home page search.
+// matchedDishes: the dishes ({ id, name }) that matched the home page search.
+// The restaurant page scrolls to them and lights them up (RestaurantDetail).
+// Its back button returns to from: the home page with the search.
 function RestaurantCard({ restaurant, matchedDishes = [] }) {
   const { t, formatPrice } = useTranslation();
+  const location = useLocation();
   const hiddenDishes = matchedDishes.length - MAX_SHOWN_DISHES;
 
   return (
     <Link
       to={`/restaurant/${restaurant.id}`}
+      state={{
+        from: location,
+        searchMatches: matchedDishes.length > 0 ? matchedDishes.map((dish) => dish.id) : undefined,
+      }}
       className="group block overflow-hidden rounded-card border border-border bg-surface/70 backdrop-blur-md transition-all duration-200 hover:-translate-y-1 hover:border-primary-500/60 hover:shadow-glow"
     >
       <div className="relative">
@@ -38,7 +45,10 @@ function RestaurantCard({ restaurant, matchedDishes = [] }) {
           <p className="mb-3 flex items-start gap-1.5 text-sm text-text">
             <Search size={14} className="mt-[3px] flex-shrink-0 text-primary-300" />
             <span>
-              {matchedDishes.slice(0, MAX_SHOWN_DISHES).join(', ')}
+              {matchedDishes
+                .slice(0, MAX_SHOWN_DISHES)
+                .map((dish) => dish.name)
+                .join(', ')}
               {hiddenDishes > 0 && (
                 <span className="text-text-muted"> {t('home.moreDishes', { count: hiddenDishes })}</span>
               )}

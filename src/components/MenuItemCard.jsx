@@ -7,16 +7,18 @@ import { optionGroups } from '../services/menuOptions';
 // dialog (MenuItemDialog) through onOpen: the button on the name stretches
 // over the whole card. orderable is false while the restaurant can't take
 // orders: it's closed, or an owner is previewing their unpublished restaurant.
-function MenuItemCard({ item, orderable = true, onOpen }) {
+// highlighted: it matched the home page search, so it lights up for a moment.
+function MenuItemCard({ item, orderable = true, highlighted = false, onOpen }) {
   const { t, formatPrice } = useTranslation();
   const soldOut = item.available === false;
   const hasOptions = optionGroups(item).length > 0;
 
   return (
     <div
+      data-highlighted={highlighted || undefined}
       className={`group relative flex items-center gap-4 rounded-card border border-border bg-surface/70 p-3 backdrop-blur-md transition-[border-color,box-shadow,translate,scale] duration-200 hover:-translate-y-0.5 hover:border-primary-500/50 hover:shadow-glow active:scale-[0.99] has-focus-visible:border-primary-400 has-focus-visible:ring-2 has-focus-visible:ring-primary-400 ${
         soldOut ? 'opacity-60' : ''
-      }`}
+      } ${highlighted ? 'menu-card-flash' : ''}`}
     >
       <FoodImage
         src={item.image}
