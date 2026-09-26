@@ -19,15 +19,16 @@ There is no test suite.
 
 The app needs a `.env` file with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (see `.env.example`). Without them, `src/supabaseClient.js` throws at startup.
 
-The site is hosted on Vercel. `vercel.json` rewrites every path that isn't a real file to `index.html`, so a direct visit or a reload on a route such as `/partner` reaches React Router instead of a 404. It also sends `Cache-Control: no-store` for everything outside `/assets/`: Chrome and Edge load a duplicated tab (like Back and Forward) from their cache without checking with the server, so a stored page could be an outdated 404 or point to JS files from an earlier deployment that no longer exist. The hashed files in `/assets/` never change, so they are cached for a year.
+The live site is https://www.zelfora.nl, hosted on Vercel. `vercel.json` rewrites every path that isn't a real file to `index.html`, so a direct visit or a reload on a route such as `/partner` reaches React Router instead of a 404. It also sends `Cache-Control: no-store` for everything outside `/assets/`: Chrome and Edge load a duplicated tab (like Back and Forward) from their cache without checking with the server, so a stored page could be an outdated 404 or point to JS files from an earlier deployment that no longer exist. The hashed files in `/assets/` never change, so they are cached for a year.
 
 The restaurant portal (`pages/Partner.jsx` and everything only it uses, including drag and drop) is a separate chunk loaded with `React.lazy` in `App.jsx`, so customers don't download it. A tab opened before a deployment can ask for a chunk that no longer exists; `main.jsx` then reloads the page once (the `vite:preloadError` event).
 
-`vercel.json` also sends security headers: `X-Frame-Options: DENY`, `nosniff`, a `Referrer-Policy`, and an enforced CSP with only `frame-ancestors`, `base-uri`, `form-action` and `object-src`. The full CSP (scripts, styles, fonts, images, connections) is sent as `Content-Security-Policy-Report-Only`, so it logs violations in the browser console without blocking anything.
-- To enforce it, check the console on the home page, a restaurant page with the dish dialog and cart, and the portal (drag and drop, photo upload), then rename the header to `Content-Security-Policy`. A Vercel preview's toolbar script can show up as a violation there; that's expected.
-- It allows the inline theme script in `index.html` by its hash (`sha256-…`). Any change to that script, even whitespace, needs the new hash in `vercel.json` (the browser console shows it in the violation).
+`vercel.json` also sends security headers: `X-Frame-Options: DENY`, `nosniff`, a `Referrer-Policy` and a Content Security Policy (CSP). The CSP is enforced: the browser blocks any script, style, font or connection from an address it doesn't list, and the site can't be shown inside another site's frame. It ran report-only on the live site first, without violations, before it was switched on (2026-09-26).
+- Anything new from outside the site (an analytics script, an embedded map, another API) is blocked until its address is added to the matching directive, such as `script-src` or `connect-src`. A blocked request shows up in the browser console as "Refused to …" with the directive it violates.
+- It allows the inline theme script in `index.html` by its hash (`sha256-…`). Any change to that script, even whitespace, needs the new hash in `vercel.json` (the browser console shows the right one in the violation).
 - It names the Supabase project's URL (`https://` and `wss://` for Realtime) in `connect-src`. Update it if the project changes.
 - Images may come from any `https:` address, because owners can paste links.
+- Vercel's toolbar on preview deployments can show up as a violation; that's expected and doesn't affect the live site.
 
 ## Architecture
 

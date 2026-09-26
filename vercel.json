@@ -18,11 +18,7 @@
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
         {
           "key": "Content-Security-Policy",
-          "value": "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
-        },
-        {
-          "key": "Content-Security-Policy-Report-Only",
-          "value": "default-src 'self'; script-src 'self' 'sha256-INNAw10QWCMO+eUgHMN3AKDRY8kfXgvvoLu+LlahTI4='; style-src 'self'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://wpmbpszbmvvtfvhaydep.supabase.co wss://wpmbpszbmvvtfvhaydep.supabase.co"
+          "value": "default-src 'self'; script-src 'self' 'sha256-INNAw10QWCMO+eUgHMN3AKDRY8kfXgvvoLu+LlahTI4='; style-src 'self'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://wpmbpszbmvvtfvhaydep.supabase.co wss://wpmbpszbmvvtfvhaydep.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
         }
       ]
     }
