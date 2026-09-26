@@ -6,7 +6,7 @@
 -- re-export after running them to confirm. The same goes for the columns
 -- added on 2026-09-26 by restaurant_owners.sql (requested_name,
 -- accepting_orders, opening_hours, menu_items.available/position) and
--- orders.sql (the delivery details and delivery_fee on orders).
+-- orders.sql (the delivery details, delivery_fee and delivered_at on orders).
 --
 -- Not included in this export:
 --   - RLS policies and triggers: see restaurant_owners.sql (restaurants and
@@ -95,9 +95,11 @@ CREATE TABLE public.orders (
   delivery_address text,
   note text,
   delivery_fee numeric NOT NULL DEFAULT 0,
+  delivered_at timestamp with time zone,
   CONSTRAINT orders_pkey PRIMARY KEY (id),
   CONSTRAINT orders_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
   CONSTRAINT orders_restaurant_id_fkey FOREIGN KEY (restaurant_id) REFERENCES public.restaurants(id),
   CONSTRAINT orders_text_lengths CHECK (char_length(customer_name) <= 100 AND char_length(phone) <= 30 AND char_length(delivery_address) <= 200 AND char_length(note) <= 500),
-  CONSTRAINT orders_status_valid CHECK (status = ANY (ARRAY['placed'::text, 'preparing'::text, 'delivering'::text, 'delivered'::text, 'cancelled'::text]))
+  CONSTRAINT orders_status_valid CHECK (status = ANY (ARRAY['placed'::text, 'preparing'::text, 'delivering'::text, 'delivered'::text, 'cancelled'::text])),
+  CONSTRAINT orders_delivered_at_valid CHECK (delivered_at IS NULL OR (status = 'delivered'::text AND delivered_at >= created_at))
 );

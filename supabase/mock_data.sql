@@ -316,6 +316,7 @@ $$;
 -- One order: 1 to 4 different dishes, sometimes a drink, and the customer's
 -- details from raw_user_meta_data (or p_details). Every dish has a fixed
 -- popularity from 1 to 5 (derived from its name), so some become bestsellers.
+-- Delivered orders arrive 20 to 55 minutes after they were placed.
 create or replace function pg_temp.mock_order(
   p_restaurant uuid, p_customer uuid, p_created timestamptz, p_status text, p_details jsonb default null
 ) returns void language plpgsql as $$
@@ -378,10 +379,11 @@ begin
   select r.delivery_fee into fee from public.restaurants r where r.id = p_restaurant;
 
   insert into public.orders (
-    user_id, restaurant_id, items, total, delivery_fee, status, created_at,
+    user_id, restaurant_id, items, total, delivery_fee, status, created_at, delivered_at,
     customer_name, phone, delivery_address, note
   ) values (
     p_customer, p_restaurant, items, subtotal + fee, fee, p_status, p_created,
+    case when p_status = 'delivered' then p_created + interval '20 minutes' + random() * interval '35 minutes' end,
     details->>'full_name', details->>'phone', details->>'address',
     case when random() < 0.15 then notes[1 + floor(random() * array_length(notes, 1))::int] end
   );

@@ -3,9 +3,12 @@ import { MapPin, Phone } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import OrderStatusBadge from './OrderStatusBadge';
 import { primaryButtonClass, secondaryButtonClass } from './formHelpers';
-import { NEXT_STATUS, isActiveOrder, orderErrorMessage, orderNumber } from '../services/orders';
+import { NEXT_STATUS, deliveredSameDay, isActiveOrder, orderErrorMessage, orderNumber } from '../services/orders';
 
 const cardClass = 'rounded-card border border-border bg-surface/70 p-6 backdrop-blur-md';
+
+const TIME = { hour: '2-digit', minute: '2-digit' };
+const DATE_AND_TIME = { day: 'numeric', month: 'short', ...TIME };
 
 const cancelButtonClass =
   'rounded-pill border border-border px-5 py-2.5 font-medium text-text transition-colors hover:border-danger hover:text-danger disabled:opacity-60';
@@ -137,7 +140,15 @@ function OrderCard({ order, onUpdate }) {
             {order.customer_name && <span className="font-sans font-normal text-text-muted"> · {order.customer_name}</span>}
           </p>
           <p className="text-xs text-text-faint">
-            {formatDate(order.created_at, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+            {t('orders.orderedAt', { date: formatDate(order.created_at, DATE_AND_TIME) })}
+            {order.delivered_at && (
+              <>
+                {' · '}
+                {t('orders.deliveredAt', {
+                  date: formatDate(order.delivered_at, deliveredSameDay(order) ? TIME : DATE_AND_TIME),
+                })}
+              </>
+            )}
           </p>
         </div>
         <OrderStatusBadge status={order.status} />

@@ -3,7 +3,9 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
 import { useTranslation } from '../context/LanguageContext';
 import OrderStatusBadge from '../components/OrderStatusBadge';
-import { orderNumber, subscribeToOrders } from '../services/orders';
+import { deliveredSameDay, orderNumber, subscribeToOrders } from '../services/orders';
+
+const DATE_AND_TIME = { dateStyle: 'medium', timeStyle: 'short' };
 
 function Orders() {
   const { user } = useAuth();
@@ -56,8 +58,15 @@ function Orders() {
               <OrderStatusBadge status={order.status} />
             </div>
             <p className="text-sm text-text-muted">
-              {formatDate(order.created_at, { dateStyle: 'medium', timeStyle: 'short' })} · #{orderNumber(order)}
+              {t('orders.orderedAt', { date: formatDate(order.created_at, DATE_AND_TIME) })} · #{orderNumber(order)}
             </p>
+            {order.delivered_at && (
+              <p className="text-sm text-text-muted">
+                {t('orders.deliveredAt', {
+                  date: formatDate(order.delivered_at, deliveredSameDay(order) ? { timeStyle: 'short' } : DATE_AND_TIME),
+                })}
+              </p>
+            )}
             <ul className="mt-2 text-sm text-text-muted">
               {order.items.map((item) => (
                 <li key={item.menu_item_id}>

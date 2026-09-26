@@ -18,6 +18,14 @@ alter table public.orders add column if not exists delivery_address text;
 alter table public.orders add column if not exists note text;
 -- The restaurant's delivery fee when the order was placed. total includes it.
 alter table public.orders add column if not exists delivery_fee numeric not null default 0;
+-- When the order reached 'delivered', set by check_order_status_change
+-- (section 4). Orders delivered before this column existed have none.
+alter table public.orders add column if not exists delivered_at timestamptz;
+
+alter table public.orders drop constraint if exists orders_delivered_at_valid;
+alter table public.orders add constraint orders_delivered_at_valid check (
+  delivered_at is null or (status = 'delivered' and delivered_at >= created_at)
+);
 
 alter table public.orders drop constraint if exists orders_text_lengths;
 alter table public.orders add constraint orders_text_lengths check (
@@ -108,10 +116,11 @@ declare
   clean_items   jsonb := '[]'::jsonb;
   computed      numeric := 0;
 begin
-  new.user_id    := auth.uid();
+  new.user_id      := auth.uid();
   -- Every order starts at the first status, at the current time.
-  new.status     := 'placed';
-  new.created_at := now();
+  new.status       := 'placed';
+  new.created_at   := now();
+  new.delivered_at := null;
 
   -- The restaurant needs a name, phone number and address; the note is optional.
   new.customer_name    := nullif(btrim(new.customer_name), '');
@@ -181,6 +190,9 @@ create trigger validate_order
 --    One step forward at a time, or cancelled before delivery. Changes from
 --    the dashboard or SQL Editor (no signed-in user) are left alone, so an
 --    admin can correct a mistake.
+--    Reaching 'delivered' records the time in delivered_at, also from the
+--    dashboard; moving an order back out of 'delivered' clears it. Only a
+--    status change touches it, so an admin can correct the time on its own.
 -- ---------------------------------------------------------------------------
 
 create or replace function public.check_order_status_change()
@@ -189,10 +201,10 @@ language plpgsql
 set search_path = public
 as $$
 begin
-  if auth.uid() is null or new.status = old.status then
+  if new.status = old.status then
     return new;
   end if;
-  if not (
+  if auth.uid() is not null and not (
     (old.status = 'placed' and new.status in ('preparing', 'cancelled'))
     or (old.status = 'preparing' and new.status in ('delivering', 'cancelled'))
     or (old.status = 'delivering' and new.status in ('delivered', 'cancelled'))
@@ -200,6 +212,7 @@ begin
     raise exception 'An order can''t go from % to %', old.status, new.status
       using hint = 'invalid_status_change';
   end if;
+  new.delivered_at := case when new.status = 'delivered' then now() end;
   return new;
 end;
 $$;

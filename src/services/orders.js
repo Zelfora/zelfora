@@ -20,6 +20,13 @@ export function orderNumber(order) {
   return order.id.slice(0, 6).toUpperCase();
 }
 
+// Whether the order was delivered on the day it was placed, so the delivery
+// time can be shown without repeating the date. delivered_at is set by the
+// database when the order reaches 'delivered'; see orders.sql.
+export function deliveredSameDay(order) {
+  return new Date(order.delivered_at).toDateString() === new Date(order.created_at).toDateString();
+}
+
 // Message for an error from placing or updating an order. The database
 // triggers send a hint such as "restaurant_closed"; see orders.sql.
 export function orderErrorMessage(err, { t, has }) {
