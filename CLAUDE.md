@@ -19,6 +19,8 @@ There is no test suite.
 
 The app needs a `.env` file with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (see `.env.example`). Without them, `src/supabaseClient.js` throws at startup.
 
+The site is hosted on Vercel. `vercel.json` rewrites every path that isn't a real file to `index.html`, so a direct visit or a reload on a route such as `/partner` reaches React Router instead of a 404.
+
 ## Architecture
 
 ### Supabase: the database enforces security
