@@ -23,6 +23,7 @@ export const translations = {
     'nav.language': 'Taal kiezen',
     'nav.theme': 'Weergave kiezen',
     'nav.partner': 'Voor restaurants',
+    'nav.myRestaurant': 'Mijn restaurant',
 
     'theme.system': 'Systeem',
     'theme.light': 'Licht',
@@ -104,6 +105,7 @@ export const translations = {
 
     'footer.partnerPrompt': 'Heb je een restaurant?',
     'footer.partnerLink': 'Meld het aan bij Zelfora',
+    'footer.myRestaurantLink': 'Ga naar mijn restaurant',
 
     'form.optional': 'optioneel',
 
@@ -208,6 +210,7 @@ export const translations = {
     'nav.language': 'Choose language',
     'nav.theme': 'Choose theme',
     'nav.partner': 'For restaurants',
+    'nav.myRestaurant': 'My restaurant',
 
     'theme.system': 'System',
     'theme.light': 'Light',
@@ -288,6 +291,7 @@ export const translations = {
 
     'footer.partnerPrompt': 'Own a restaurant?',
     'footer.partnerLink': 'List it on Zelfora',
+    'footer.myRestaurantLink': 'Go to my restaurant',
 
     'form.optional': 'optional',
 
@@ -392,6 +396,7 @@ export const translations = {
     'nav.language': 'Sprache wählen',
     'nav.theme': 'Darstellung wählen',
     'nav.partner': 'Für Restaurants',
+    'nav.myRestaurant': 'Mein Restaurant',
 
     'theme.system': 'System',
     'theme.light': 'Hell',
@@ -474,6 +479,7 @@ export const translations = {
 
     'footer.partnerPrompt': 'Du hast ein Restaurant?',
     'footer.partnerLink': 'Melde es bei Zelfora an',
+    'footer.myRestaurantLink': 'Zu meinem Restaurant',
 
     'form.optional': 'optional',
 

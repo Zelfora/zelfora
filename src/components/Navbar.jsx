@@ -8,7 +8,7 @@ import ThemeSwitcher from './ThemeSwitcher';
 import Avatar from './Avatar';
 
 function Navbar() {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, ownsRestaurant, signOut } = useAuth();
   const { itemCount } = useCart();
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -25,14 +25,16 @@ function Navbar() {
           to="/"
           className="font-display text-xl font-bold bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent"
         >
-          Zelfora<span className="text-text-muted">.nl</span>
+          Zelfora
         </Link>
 
         <div className="flex items-center gap-2 sm:gap-4">
           {/* Smaller screens reach the portal through the footer and the profile page. */}
-          <Link to="/partner" className="hidden text-sm text-text-muted hover:text-primary-300 lg:inline">
-            {t('nav.partner')}
-          </Link>
+          {ownsRestaurant !== null && (
+            <Link to="/partner" className="hidden text-sm text-text-muted hover:text-primary-300 lg:inline">
+              {t(ownsRestaurant ? 'nav.myRestaurant' : 'nav.partner')}
+            </Link>
+          )}
           <ThemeSwitcher />
           <LanguageSwitcher />
 

@@ -50,6 +50,38 @@ export function AuthProvider({ children }) {
     return data;
   }
 
+  // Whether the signed-in user owns a restaurant (their id is in
+  // restaurants.owner_id). Null until known, so the navbar and footer don't
+  // flash the wrong link.
+  const [loadedOwnership, setLoadedOwnership] = useState({ userId: null, owns: false });
+  let ownsRestaurant = null;
+  if (!loading) {
+    if (!userId) ownsRestaurant = false;
+    else if (loadedOwnership.userId === userId) ownsRestaurant = loadedOwnership.owns;
+  }
+
+  useEffect(() => {
+    if (!userId) return;
+    let ignore = false;
+    supabase
+      .from('restaurants')
+      .select('id')
+      .eq('owner_id', userId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) console.error(error);
+        if (!ignore) setLoadedOwnership({ userId, owns: Boolean(data) });
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [userId]);
+
+  // Called by the partner portal after the user registers a restaurant.
+  function markRestaurantOwned() {
+    setLoadedOwnership({ userId, owns: true });
+  }
+
   // Returns the new session when email confirmation is disabled, otherwise null.
   // The confirmation link brings the user back to redirectPath. Paths other than
   // "/" must be allowed under Auth > URL Configuration > Redirect URLs, otherwise
@@ -106,8 +138,10 @@ export function AuthProvider({ children }) {
     session,
     user: session?.user ?? null,
     profile,
+    ownsRestaurant,
     loading,
     updateProfile,
+    markRestaurantOwned,
     signUp,
     signIn,
     signOut,

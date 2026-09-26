@@ -64,6 +64,7 @@ function PartnerIntro() {
 }
 
 function PartnerDashboard({ userId }) {
+  const { markRestaurantOwned } = useAuth();
   const { t } = useTranslation();
   const [restaurant, setRestaurant] = useState(null);
   const [status, setStatus] = useState('loading'); // 'loading' | 'ready' | 'error'
@@ -92,7 +93,12 @@ function PartnerDashboard({ userId }) {
   if (!restaurant) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-10 md:px-8">
-        <RestaurantSignupForm onCreated={setRestaurant} />
+        <RestaurantSignupForm
+          onCreated={(created) => {
+            setRestaurant(created);
+            markRestaurantOwned();
+          }}
+        />
       </main>
     );
   }
