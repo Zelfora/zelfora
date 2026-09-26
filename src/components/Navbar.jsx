@@ -38,9 +38,11 @@ function Navbar() {
           <ThemeSwitcher />
           <LanguageSwitcher />
 
+          {/* The count badge sticks out to the right, so on phones the cart
+              needs extra room before the profile button. */}
           <Link
             to="/cart"
-            className="relative cursor-pointer text-text-muted transition-colors hover:text-primary-300"
+            className="relative mr-2 cursor-pointer text-text-muted transition-colors hover:text-primary-300 sm:mr-0"
             aria-label={t('nav.cart')}
           >
             <ShoppingCart size={22} />

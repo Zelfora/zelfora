@@ -136,7 +136,7 @@ function DishDetails({ item, restaurant, notice, titleId, onClose }) {
         ) : (
           <>
             {switching && (
-              <p className="mb-3 text-sm text-text-muted">
+              <p className="notice-flash -mx-3 -mt-1.5 mb-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-text-muted">
                 {t('itemDialog.switchNotice', { current: cartRestaurantName })}
               </p>
             )}

@@ -237,6 +237,21 @@
       background-color: transparent;
     }
   }
+  /* MenuItemDialog: the "adding this starts a new order" notice lights up
+     once the dialog has opened, then settles back into plain text. */
+  .notice-flash {
+    animation: notice-flash 2400ms ease-out 250ms;
+  }
+  @keyframes notice-flash {
+    15%,
+    50% {
+      color: var(--color-text);
+      background-color: color-mix(in oklab, var(--color-warn-400) 14%, transparent);
+      box-shadow:
+        inset 0 0 0 1px color-mix(in oklab, var(--color-warn-400) 55%, transparent),
+        0 0 18px color-mix(in oklab, var(--color-warn-400) 22%, transparent);
+    }
+  }
   /* The cart icon hops when something is added. */
   .cart-bump {
     animation: cart-bump 480ms ease-out;
