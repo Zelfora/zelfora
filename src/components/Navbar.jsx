@@ -23,7 +23,7 @@ function Navbar() {
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 md:px-8">
         <Link
           to="/"
-          className="font-display text-xl font-bold bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent"
+          className="font-display text-xl font-bold md:text-3xl bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent"
         >
           Zelfora
         </Link>
