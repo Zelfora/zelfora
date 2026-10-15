@@ -10,6 +10,11 @@ function normalize(text) {
   return (text ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 }
 
+// The last list loaded, kept while the site is open. Coming back to the home
+// page (Back from a restaurant) shows it at once instead of a loading message,
+// while a fresh copy loads: a restaurant can have opened or closed meanwhile.
+let lastLoaded = null;
+
 function Home() {
   const { t } = useTranslation();
   // The search is also in the address (?q=), so Back from a restaurant, or a
@@ -21,8 +26,8 @@ function Home() {
   const location = useLocation();
   const navigationType = useNavigationType();
   const [locationKey, setLocationKey] = useState(location.key);
-  const [restaurants, setRestaurants] = useState([]);
-  const [status, setStatus] = useState('loading'); // 'loading' | 'ready' | 'error'
+  const [restaurants, setRestaurants] = useState(() => lastLoaded ?? []);
+  const [status, setStatus] = useState(() => (lastLoaded ? 'ready' : 'loading')); // 'loading' | 'ready' | 'error'
 
   // Typing replaces the address. Any other change to it while the page is
   // open (the navbar logo, Back and Forward) sets the search.
@@ -49,11 +54,13 @@ function Home() {
         .order('created_at', { referencedTable: 'menu_items' });
       if (error) {
         console.error(error);
-        setStatus('error');
+        // With an earlier list on screen, keep showing it.
+        if (!lastLoaded) setStatus('error');
         return;
       }
       // Open restaurants first; the sort is stable, so each group stays alphabetical.
-      setRestaurants(data.sort((a, b) => Number(b.is_open) - Number(a.is_open)));
+      lastLoaded = data.sort((a, b) => Number(b.is_open) - Number(a.is_open));
+      setRestaurants(lastLoaded);
       setStatus('ready');
     }
     load();
