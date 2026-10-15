@@ -1,16 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
 import { useTranslation } from '../context/LanguageContext';
+import AddressInput from '../components/AddressInput';
 import FormField from '../components/FormField';
 import FormMessage from '../components/FormMessage';
 import PageMessage from '../components/PageMessage';
 import { cardClass, inputClass, noticeClass, primaryButtonClass, textareaClass } from '../components/formHelpers';
 import { orderErrorMessage } from '../services/orders';
 import { MAX_QUANTITY, formatOptions } from '../services/menuOptions';
+import { normalizePhone } from '../services/phone';
 import { closedNoticeKey } from '../services/restaurants';
 
 const EMPTY_DETAILS = { customer_name: '', phone: '', delivery_address: '', note: '' };
@@ -24,6 +26,7 @@ function Cart() {
   const [details, setDetails] = useState(EMPTY_DETAILS);
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState('');
+  const addressId = useId();
 
   // The restaurant's current delivery fee and whether it's open, tagged with
   // its id so a previous cart's restaurant never shows.
@@ -77,6 +80,10 @@ function Cart() {
     return (e) => setDetails((current) => ({ ...current, [field]: e.target.value }));
   }
 
+  function setDeliveryAddress(address) {
+    setDetails((current) => ({ ...current, delivery_address: address }));
+  }
+
   const deliveryFee = restaurant ? Number(restaurant.delivery_fee) : null;
   const closed = restaurant ? !restaurant.is_open : false;
 
@@ -85,8 +92,17 @@ function Cart() {
   // is closed or a dish is sold out.
   async function handlePlaceOrder(e) {
     e.preventDefault();
-    setPlacing(true);
     setError('');
+
+    const phone = normalizePhone(details.phone);
+    if (!phone) {
+      setError(t('cart.error.phone'));
+      return;
+    }
+    // Shows the tidied number, in case the order fails for another reason.
+    setDetails((current) => ({ ...current, phone }));
+
+    setPlacing(true);
     try {
       const { error: insertError } = await supabase.from('orders').insert({
         user_id: user.id,
@@ -94,7 +110,7 @@ function Cart() {
         items: items.map(({ id, name, price, quantity, options }) => ({ menu_item_id: id, name, price, quantity, options })),
         total: subtotal + (deliveryFee ?? 0),
         customer_name: details.customer_name.trim(),
-        phone: details.phone.trim(),
+        phone,
         delivery_address: details.delivery_address.trim(),
         note: details.note.trim() || null,
       });
@@ -195,21 +211,22 @@ function Cart() {
             required
             maxLength={30}
             autoComplete="tel"
+            placeholder={t('cart.field.phonePlaceholder')}
             value={details.phone}
             onChange={update('phone')}
             className={inputClass}
           />
         </FormField>
 
-        <FormField label={t('cart.field.address')} className="sm:col-span-2">
-          <input
+        <FormField label={t('cart.field.address')} controlId={addressId} className="sm:col-span-2">
+          <AddressInput
+            id={addressId}
             name="address"
             required
             maxLength={200}
-            autoComplete="street-address"
             placeholder={t('cart.field.addressPlaceholder')}
             value={details.delivery_address}
-            onChange={update('delivery_address')}
+            onChange={setDeliveryAddress}
             className={inputClass}
           />
         </FormField>

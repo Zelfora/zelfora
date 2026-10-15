@@ -68,6 +68,8 @@ The browser talks to Supabase directly with the public anon key, so Row Level Se
 
 - The same dish can be on an order more than once with other options, so key order item lists by index, not `menu_item_id`. Orders from before options existed have no `options`.
 
+- The cart checks and tidies the phone number before placing the order (`normalizePhone` in `services/phone.js`, hand-written rules, no library): Dutch numbers fully (stored as "06 12345678", "020 1234567"), foreign numbers only as + with 7 to 15 digits. The database doesn't check it: a wrong number only hurts the customer who typed it. Older orders keep whatever was typed.
+
 - Customers select and insert their own orders. The restaurant's owner selects its orders and can update only `status` (column grant). There are no delete policies.
 - Statuses: `placed → preparing → delivering → delivered`, or `cancelled` from any of the first three. `check_order_status_change` allows one step at a time for signed-in users; changes from the dashboard are left alone, so the admin can correct mistakes.
 - `delivered_at` is set by `check_order_status_change` whenever the status changes to `delivered` (also from the dashboard), and cleared if it changes back. Owners can't write it. Orders delivered before the column existed have none, so the UI only shows a delivery time when it's there.
@@ -96,7 +98,7 @@ The portal has three tabs: `/partner` (orders: accept, move on, reject or cancel
 - `components/formHelpers.js`: `cardClass` (a page section on a translucent card), `noticeClass` (a yellow warning box), the input, textarea and button classes, and `parseAmount`/`formatAmount` for euro amounts as typed in forms ("12,50").
 - `PageMessage`: a centered message in place of a page's content, for loading, empty or failed pages (`tone="error"`).
 - `FormMessage`: a form's error or confirmation (`error`, `info`), with `role="alert"` or `role="status"` so screen readers announce it.
-- `AddressInput`: an address field that suggests Dutch addresses while typing, used for the restaurant's address. They come from PDOK's Locatieserver (`services/addresses.js`), the government's free search over the BAG address register: no key, no account. Picking a suggestion fills in the text, and typed text is accepted too, so a missing address or a PDOK outage never blocks the form. Only the text is saved, no coordinates. Wrap it in `<FormField controlId>`, because its list can't sit inside a `<label>`.
+- `AddressInput`: an address field that suggests Dutch addresses while typing, used for the restaurant's address and the delivery address in the cart. They come from PDOK's Locatieserver (`services/addresses.js`), the government's free search over the BAG address register: no key, no account. Picking a suggestion fills in the text, and typed text is accepted too, so a missing address or a PDOK outage never blocks the form. Only the text is saved, no coordinates. Wrap it in `<FormField controlId>`, because its list can't sit inside a `<label>`.
 - Pages that load data show an error when loading fails, not an empty result or "not found".
 - `closedNoticeKey(restaurant)` in `services/restaurants.js` picks the "closed" or "paused" notice.
 
