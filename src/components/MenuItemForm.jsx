@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useTranslation } from '../context/LanguageContext';
 import FormField from './FormField';
 import FormMessage from './FormMessage';
 import ImageInput from './ImageInput';
 import MenuOptionsEditor from './MenuOptionsEditor';
+import Modal from './Modal';
 import {
   formatAmount,
   inputClass,
@@ -26,6 +27,37 @@ const MAX_PRICE = 999.99;
 const NEW_CATEGORY = ' new';
 
 const EMPTY_FORM = { name: '', price: '', category: '', newCategory: false, description: '', image: '', options: [] };
+
+// Once the owner confirms a big price change, the check stays off until the
+// tab closes (sessionStorage, so also across reloads). The variable covers
+// browsers that block storage.
+const PRICE_CHECK_KEY = 'zelfora.partner.priceCheckOff';
+let priceCheckOff = false;
+
+function isPriceCheckOff() {
+  try {
+    return priceCheckOff || sessionStorage.getItem(PRICE_CHECK_KEY) !== null;
+  } catch {
+    return priceCheckOff;
+  }
+}
+
+function turnPriceCheckOff() {
+  priceCheckOff = true;
+  try {
+    sessionStorage.setItem(PRICE_CHECK_KEY, '1');
+  } catch {
+    // Not stored; the variable still covers this visit.
+  }
+}
+
+// A new price that more than halves or more than doubles the old one, as a
+// change such as 1.5 (+150%) or -0.6 (-60%), to check it's not a typo.
+// Null for a smaller change.
+function bigPriceChange(previous, price) {
+  if (price > previous * 2 || price < previous / 2) return price / previous - 1;
+  return null;
+}
 
 // Adds a dish to the owner's restaurant, or edits one when item is given.
 // RLS only accepts changes to items of a restaurant the signed-in user owns.
@@ -50,6 +82,11 @@ function MenuItemForm({ restaurantId, item = null, categories, menu, onSaved, on
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // A big price change waiting for the owner's yes: { fields, change }. It
+  // stays set after the dialog closes, so the dialog can animate out.
+  const [priceCheck, setPriceCheck] = useState(null);
+  const [priceCheckOpen, setPriceCheckOpen] = useState(false);
+  const priceCheckId = useId();
   const nameRef = useRef(null);
 
   function update(field) {
@@ -130,6 +167,22 @@ function MenuItemForm({ restaurantId, item = null, categories, menu, onSaved, on
 
     const fields = { name, price, category, description: form.description.trim() || null, options };
 
+    const change = editing && !isPriceCheckOff() ? bigPriceChange(Number(item.price), price) : null;
+    if (change !== null) {
+      setPriceCheck({ fields, change });
+      setPriceCheckOpen(true);
+      return;
+    }
+    save(fields);
+  }
+
+  function confirmPriceChange() {
+    turnPriceCheckOff();
+    setPriceCheckOpen(false);
+    save(priceCheck.fields);
+  }
+
+  async function save(fields) {
     setSubmitting(true);
     try {
       const saved = await commitImage({
@@ -150,7 +203,7 @@ function MenuItemForm({ restaurantId, item = null, categories, menu, onSaved, on
       onSaved(saved);
       if (!editing) {
         // Keep the category so several dishes in a row can go into the same one.
-        setForm({ ...EMPTY_FORM, category });
+        setForm({ ...EMPTY_FORM, category: fields.category });
         setInfo(t('partner.menu.added', { name: saved.name }));
         nameRef.current?.focus();
       }
@@ -163,104 +216,145 @@ function MenuItemForm({ restaurantId, item = null, categories, menu, onSaved, on
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <FormField label={t('partner.field.dishName')} className="sm:col-span-2">
-        <input
-          ref={nameRef}
-          name="dish-name"
-          required
-          maxLength={100}
-          autoComplete="off"
-          value={form.name}
-          onChange={update('name')}
-          className={inputClass}
-        />
-      </FormField>
-
-      <FormField label={t('partner.field.price')}>
-        <input
-          name="price"
-          required
-          inputMode="decimal"
-          autoComplete="off"
-          placeholder={t('partner.field.amountPlaceholder')}
-          value={form.price}
-          onChange={update('price')}
-          className={inputClass}
-        />
-      </FormField>
-
-      {/* A select, not a datalist: browsers filter a datalist by the text in
-          the field, so it only offered the current category. */}
-      {categoryOptions.length === 0 ? (
-        <FormField label={t('partner.field.category')}>
-          <input name="category" {...newCategoryProps} />
+    <>
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <FormField label={t('partner.field.dishName')} className="sm:col-span-2">
+          <input
+            ref={nameRef}
+            name="dish-name"
+            required
+            maxLength={100}
+            autoComplete="off"
+            value={form.name}
+            onChange={update('name')}
+            className={inputClass}
+          />
         </FormField>
-      ) : (
-        <div className="flex min-w-0 flex-col gap-2">
+
+        <FormField label={t('partner.field.price')}>
+          <input
+            name="price"
+            required
+            inputMode="decimal"
+            autoComplete="off"
+            placeholder={t('partner.field.amountPlaceholder')}
+            value={form.price}
+            onChange={update('price')}
+            className={inputClass}
+          />
+        </FormField>
+
+        {/* A select, not a datalist: browsers filter a datalist by the text in
+            the field, so it only offered the current category. */}
+        {categoryOptions.length === 0 ? (
           <FormField label={t('partner.field.category')}>
-            <select
-              name="category"
-              required
-              value={form.newCategory ? NEW_CATEGORY : form.category}
-              onChange={chooseCategory}
-              className={`min-w-0 cursor-pointer ${inputClass}`}
-            >
-              <option value="" disabled>
-                {t('partner.field.chooseCategory')}
-              </option>
-              {categoryOptions.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-              <option value={NEW_CATEGORY}>{t('partner.field.newCategory')}</option>
-            </select>
+            <input name="category" {...newCategoryProps} />
           </FormField>
-          {/* Appears when "new category" is chosen, ready to type in. */}
-          {form.newCategory && (
-            <input name="new-category" aria-label={t('partner.field.newCategoryName')} autoFocus {...newCategoryProps} />
+        ) : (
+          <div className="flex min-w-0 flex-col gap-2">
+            <FormField label={t('partner.field.category')}>
+              <select
+                name="category"
+                required
+                value={form.newCategory ? NEW_CATEGORY : form.category}
+                onChange={chooseCategory}
+                className={`min-w-0 cursor-pointer ${inputClass}`}
+              >
+                <option value="" disabled>
+                  {t('partner.field.chooseCategory')}
+                </option>
+                {categoryOptions.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+                <option value={NEW_CATEGORY}>{t('partner.field.newCategory')}</option>
+              </select>
+            </FormField>
+            {/* Appears when "new category" is chosen, ready to type in. */}
+            {form.newCategory && (
+              <input name="new-category" aria-label={t('partner.field.newCategoryName')} autoFocus {...newCategoryProps} />
+            )}
+          </div>
+        )}
+
+        <FormField label={t('partner.field.description')} optional className="sm:col-span-2">
+          <textarea
+            name="description"
+            rows={2}
+            maxLength={500}
+            value={form.description}
+            onChange={update('description')}
+            className={textareaClass}
+          />
+        </FormField>
+
+        <FormField label={t('partner.field.image')} optional group className="sm:col-span-2">
+          <ImageInput kind="menuItem" value={form.image} onChange={setImage} />
+        </FormField>
+
+        <FormField label={t('partner.field.options')} optional group className="sm:col-span-2">
+          <MenuOptionsEditor
+            value={form.options}
+            onChange={setOptions}
+            copySources={copySources}
+            formatAmount={formatLocalAmount}
+          />
+        </FormField>
+
+        <FormMessage error={error} info={info} className="sm:col-span-2" />
+
+        <div className="mt-2 flex flex-wrap gap-3 sm:col-span-2">
+          <button type="submit" disabled={submitting} className={`flex-1 ${primaryButtonClass}`}>
+            {submitting ? t('common.pleaseWait') : t(editing ? 'common.save' : 'partner.menu.add')}
+          </button>
+          {onCancel && (
+            <button type="button" disabled={submitting} onClick={onCancel} className={secondaryButtonClass}>
+              {t('common.cancel')}
+            </button>
           )}
         </div>
-      )}
+      </form>
 
-      <FormField label={t('partner.field.description')} optional className="sm:col-span-2">
-        <textarea
-          name="description"
-          rows={2}
-          maxLength={500}
-          value={form.description}
-          onChange={update('description')}
-          className={textareaClass}
-        />
-      </FormField>
-
-      <FormField label={t('partner.field.image')} optional group className="sm:col-span-2">
-        <ImageInput kind="menuItem" value={form.image} onChange={setImage} />
-      </FormField>
-
-      <FormField label={t('partner.field.options')} optional group className="sm:col-span-2">
-        <MenuOptionsEditor
-          value={form.options}
-          onChange={setOptions}
-          copySources={copySources}
-          formatAmount={formatLocalAmount}
-        />
-      </FormField>
-
-      <FormMessage error={error} info={info} className="sm:col-span-2" />
-
-      <div className="mt-2 flex flex-wrap gap-3 sm:col-span-2">
-        <button type="submit" disabled={submitting} className={`flex-1 ${primaryButtonClass}`}>
-          {submitting ? t('common.pleaseWait') : t(editing ? 'common.save' : 'partner.menu.add')}
-        </button>
-        {onCancel && (
-          <button type="button" disabled={submitting} onClick={onCancel} className={secondaryButtonClass}>
-            {t('common.cancel')}
-          </button>
+      {/* Asks before saving a price that more than halves or doubles. No comes
+          first, so it has the focus when the dialog opens. */}
+      <Modal
+        open={priceCheckOpen}
+        onClose={() => setPriceCheckOpen(false)}
+        labelledBy={priceCheckId}
+        className="sm:max-w-md"
+      >
+        {priceCheck && (
+          <div className="flex flex-col gap-5 p-5">
+            <div>
+              <p id={priceCheckId} className="font-display text-lg font-semibold text-text">
+                {t(priceCheck.change > 0 ? 'partner.menu.priceUp' : 'partner.menu.priceDown', {
+                  name: priceCheck.fields.name,
+                  percent: new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }).format(
+                    Math.abs(priceCheck.change)
+                  ),
+                })}
+              </p>
+              <p className="mt-1 text-sm text-text-muted tabular-nums">
+                {formatPrice(item.price)} → {formatPrice(priceCheck.fields.price)}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => setPriceCheckOpen(false)}
+                className={`flex-1 ${secondaryButtonClass}`}
+              >
+                {t('common.no')}
+              </button>
+              <button type="button" onClick={confirmPriceChange} className={`flex-1 ${primaryButtonClass}`}>
+                {t('common.yes')}
+              </button>
+            </div>
+          </div>
         )}
-      </div>
-    </form>
+      </Modal>
+    </>
   );
 }
 
