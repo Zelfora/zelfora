@@ -1,12 +1,12 @@
 import { useId } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronDown, LogOut, Receipt, Store, User } from 'lucide-react';
+import { ChevronDown, LogOut, Receipt, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import { useDropdown } from '../hooks/useDropdown';
 import Avatar from './Avatar';
 import ThemeSwitcher from './ThemeSwitcher';
-import { dropdownPanelClass } from './formHelpers';
+import { dropdownPanelClass, navButtonClass } from './formHelpers';
 
 // The pages in the menu that the avatar button lights up for.
 const ACCOUNT_PAGES = ['/orders', '/profile'];
@@ -15,11 +15,11 @@ const itemClass =
   'flex w-full cursor-pointer items-center gap-3 px-4 py-2 text-left text-sm transition-colors hover:bg-surface-hover';
 
 // The signed-in user's menu in the navbar, behind their avatar: their
-// orders, profile and restaurant, the theme, and signing out. A button that
-// shows and hides a panel of links (a disclosure, not an ARIA menu), so
-// it works with Tab like the rest of the page.
+// orders and profile, the theme, and signing out. A button that shows and
+// hides a panel of links (a disclosure, not an ARIA menu), so it works with
+// Tab like the rest of the page.
 function AccountMenu() {
-  const { user, profile, ownsRestaurant, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -47,12 +47,10 @@ function AccountMenu() {
         aria-controls={open ? panelId : undefined}
         aria-label={t('nav.account')}
         title={t('nav.account')}
-        className={`flex h-10 cursor-pointer items-center gap-1 rounded-pill border pr-2 pl-1 text-text-muted transition-colors hover:border-primary-500 hover:text-text ${
-          highlighted ? 'border-primary-500' : 'border-border'
-        }`}
+        className={`${navButtonClass} gap-1 pr-1 pl-1 sm:pr-2 ${highlighted ? 'border-primary-500' : 'border-border'}`}
       >
-        <Avatar src={profile?.avatar_url} name={user.email} className="h-8 w-8 text-sm" />
-        <ChevronDown size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+        <Avatar src={profile?.avatar_url} name={user.email} className="h-7 w-7 text-sm" />
+        <ChevronDown size={14} className={`hidden transition-transform sm:block ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
@@ -69,11 +67,6 @@ function AccountMenu() {
             <MenuLink to="/profile" icon={User} onClick={close}>
               {t('nav.profile')}
             </MenuLink>
-            {ownsRestaurant !== null && (
-              <MenuLink to="/partner" icon={Store} onClick={close}>
-                {t(ownsRestaurant ? 'nav.myRestaurant' : 'nav.partner')}
-              </MenuLink>
-            )}
           </ul>
           <hr className="my-1 border-border" />
           {/* The switch has the same text as its accessible name. */}

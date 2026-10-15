@@ -1,6 +1,6 @@
 import { Check, ChevronDown } from 'lucide-react';
 import { useDropdown } from '../hooks/useDropdown';
-import { dropdownPanelClass } from './formHelpers';
+import { dropdownPanelClass, navButtonClass } from './formHelpers';
 
 // Compact navbar menu for picking one option (such as the language).
 // options: [{ value, label, icon, lang? }]
@@ -22,7 +22,7 @@ function NavDropdown({ label, value, options, onChange, children }) {
         aria-expanded={open}
         aria-label={label}
         title={label}
-        className="flex h-9 items-center gap-1.5 rounded-pill border border-border px-2.5 text-xs font-semibold uppercase text-text-muted transition-colors hover:border-primary-500 hover:text-text"
+        className={`${navButtonClass} gap-1.5 border-border px-2.5 text-xs font-semibold uppercase`}
       >
         {children}
         <ChevronDown size={14} className={`hidden transition-transform sm:block ${open ? 'rotate-180' : ''}`} />

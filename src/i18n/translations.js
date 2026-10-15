@@ -173,12 +173,7 @@ export const translations = {
     'profile.savePassword': 'Wachtwoord wijzigen',
     'profile.passwordChanged': 'Je wachtwoord is gewijzigd.',
     'profile.viewOrders': 'Bekijk mijn bestellingen',
-    'profile.partnerPortal': 'Restaurantportaal',
     'profile.photo': 'Profielfoto',
-
-    'footer.partnerPrompt': 'Heb je een restaurant?',
-    'footer.partnerLink': 'Meld het aan bij Zelfora',
-    'footer.myRestaurantLink': 'Ga naar mijn restaurant',
 
     'form.optional': 'optioneel',
     'form.addressSuggestions': 'Adressuggesties',
@@ -521,12 +516,7 @@ export const translations = {
     'profile.savePassword': 'Change password',
     'profile.passwordChanged': 'Your password has been changed.',
     'profile.viewOrders': 'View my orders',
-    'profile.partnerPortal': 'Restaurant portal',
     'profile.photo': 'Profile photo',
-
-    'footer.partnerPrompt': 'Own a restaurant?',
-    'footer.partnerLink': 'List it on Zelfora',
-    'footer.myRestaurantLink': 'Go to my restaurant',
 
     'form.optional': 'optional',
     'form.addressSuggestions': 'Address suggestions',
@@ -871,12 +861,7 @@ export const translations = {
     'profile.savePassword': 'Passwort ändern',
     'profile.passwordChanged': 'Dein Passwort wurde geändert.',
     'profile.viewOrders': 'Meine Bestellungen ansehen',
-    'profile.partnerPortal': 'Restaurantportal',
     'profile.photo': 'Profilfoto',
-
-    'footer.partnerPrompt': 'Du hast ein Restaurant?',
-    'footer.partnerLink': 'Melde es bei Zelfora an',
-    'footer.myRestaurantLink': 'Zu meinem Restaurant',
 
     'form.optional': 'optional',
     'form.addressSuggestions': 'Adressvorschläge',

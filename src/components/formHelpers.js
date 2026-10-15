@@ -4,6 +4,11 @@
 // A section of a page, such as a form or a list, on a translucent card.
 export const cardClass = 'rounded-card border border-border bg-surface/70 p-6 backdrop-blur-md';
 
+// The button of a navbar dropdown (the language, the account menu), so they
+// line up. Add the padding and the border color per use.
+export const navButtonClass =
+  'flex h-9 cursor-pointer items-center rounded-pill border text-text-muted transition-colors hover:border-primary-500 hover:text-text';
+
 // The panel of a navbar dropdown, below the right edge of its button. Set a
 // min-width with it.
 export const dropdownPanelClass =

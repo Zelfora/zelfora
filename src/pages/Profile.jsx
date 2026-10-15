@@ -72,9 +72,6 @@ function Profile() {
           <Link to="/orders" className={`${accountButtonClass} hover:border-primary-500`}>
             {t('profile.viewOrders')}
           </Link>
-          <Link to="/partner" className={`${accountButtonClass} hover:border-primary-500`}>
-            {t('profile.partnerPortal')}
-          </Link>
           <button onClick={handleSignOut} className={`${accountButtonClass} hover:border-danger hover:text-danger`}>
             {t('nav.signOut')}
           </button>

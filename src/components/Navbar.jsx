@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
-import { ShoppingCart } from 'lucide-react';
+import { Link, NavLink } from 'react-router-dom';
+import { ShoppingCart, Store } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useTranslation } from '../context/LanguageContext';
@@ -25,11 +25,21 @@ function Navbar() {
         </Link>
 
         <div className="flex items-center gap-2 sm:gap-4">
-          {/* Phones reach the portal through the account menu and the footer. */}
+          {/* The only link to the portal, for restaurants that want to join
+              and for owners. On phones a shop icon, for lack of room. */}
           {ownsRestaurant !== null && (
-            <Link to="/partner" className="hidden text-sm text-text-muted hover:text-primary-300 md:inline">
-              {t(ownsRestaurant ? 'nav.myRestaurant' : 'nav.partner')}
-            </Link>
+            <NavLink
+              to="/partner"
+              aria-label={t(ownsRestaurant ? 'nav.myRestaurant' : 'nav.partner')}
+              className={({ isActive }) =>
+                `flex items-center text-sm transition-colors ${
+                  isActive ? 'text-primary-300' : 'text-text-muted hover:text-primary-300'
+                }`
+              }
+            >
+              <Store size={22} className="sm:hidden" />
+              <span className="hidden sm:inline">{t(ownsRestaurant ? 'nav.myRestaurant' : 'nav.partner')}</span>
+            </NavLink>
           )}
           <LanguageSwitcher />
 

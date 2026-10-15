@@ -1,34 +1,13 @@
-import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useTranslation } from '../context/LanguageContext';
 import ThemeSwitcher from './ThemeSwitcher';
 
-// Also a way to the owner portal on phones, where the navbar only has it in
-// the account menu, and the theme switch for visitors who aren't signed in.
-// cart-shift moves it aside for the cart panel on a restaurant page, like
-// the page above it.
+// Holds the theme switch for visitors who aren't signed in (the navbar only
+// has it in the account menu). cart-shift moves it aside for the cart panel
+// on a restaurant page, like the page above it.
 function Footer() {
-  const { ownsRestaurant } = useAuth();
-  const { t } = useTranslation();
-  const linkClass = 'font-semibold text-primary-300 hover:text-primary-400';
-
   return (
     <footer className="cart-shift border-t border-border">
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-4 py-6 text-sm text-text-muted sm:flex-row sm:justify-between md:px-8">
         <span className="font-display font-semibold text-text">Zelfora</span>
-        {ownsRestaurant === true && (
-          <Link to="/partner" className={linkClass}>
-            {t('footer.myRestaurantLink')} &rarr;
-          </Link>
-        )}
-        {ownsRestaurant === false && (
-          <span>
-            {t('footer.partnerPrompt')}{' '}
-            <Link to="/partner" className={linkClass}>
-              {t('footer.partnerLink')}
-            </Link>
-          </span>
-        )}
         <ThemeSwitcher />
       </div>
     </footer>
