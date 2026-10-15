@@ -174,6 +174,7 @@ export const translations = {
     'footer.myRestaurantLink': 'Ga naar mijn restaurant',
 
     'form.optional': 'optioneel',
+    'form.addressSuggestions': 'Adressuggesties',
 
     'partner.loading': 'Restaurantportaal laden...',
     'partner.loadFailed': 'Je restaurant kon niet worden geladen. Probeer het later opnieuw.',
@@ -512,6 +513,7 @@ export const translations = {
     'footer.myRestaurantLink': 'Go to my restaurant',
 
     'form.optional': 'optional',
+    'form.addressSuggestions': 'Address suggestions',
 
     'partner.loading': 'Loading restaurant portal...',
     'partner.loadFailed': "Your restaurant couldn't be loaded. Please try again later.",
@@ -852,6 +854,7 @@ export const translations = {
     'footer.myRestaurantLink': 'Zu meinem Restaurant',
 
     'form.optional': 'optional',
+    'form.addressSuggestions': 'Adressvorschläge',
 
     'partner.loading': 'Restaurantportal wird geladen...',
     'partner.loadFailed': 'Dein Restaurant konnte nicht geladen werden. Bitte versuche es später erneut.',

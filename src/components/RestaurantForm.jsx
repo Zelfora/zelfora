@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useTranslation } from '../context/LanguageContext';
+import AddressInput from './AddressInput';
 import FormField from './FormField';
 import FormMessage from './FormMessage';
 import ImageInput from './ImageInput';
@@ -46,9 +47,14 @@ function RestaurantForm({ restaurant = null, onSaved }) {
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const addressId = useId();
 
   function update(field) {
     return (e) => setForm((current) => ({ ...current, [field]: e.target.value }));
+  }
+
+  function setAddress(address) {
+    setForm((current) => ({ ...current, address }));
   }
 
   function setImage(image) {
@@ -169,14 +175,14 @@ function RestaurantForm({ restaurant = null, onSaved }) {
         />
       </FormField>
 
-      <FormField label={t('partner.field.address')}>
-        <input
+      <FormField label={t('partner.field.address')} controlId={addressId}>
+        <AddressInput
+          id={addressId}
           name="address"
           required
           maxLength={200}
-          autoComplete="street-address"
           value={form.address}
-          onChange={update('address')}
+          onChange={setAddress}
           className={inputClass}
         />
       </FormField>

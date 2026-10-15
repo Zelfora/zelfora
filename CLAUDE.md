@@ -27,6 +27,7 @@ The restaurant portal (`pages/Partner.jsx` and everything only it uses, includin
 - Anything new from outside the site (an analytics script, an embedded map, another API) is blocked until its address is added to the matching directive, such as `script-src` or `connect-src`. A blocked request shows up in the browser console as "Refused to …" with the directive it violates.
 - It allows the inline theme script in `index.html` by its hash (`sha256-…`). Any change to that script, even whitespace, needs the new hash in `vercel.json` (the browser console shows the right one in the violation).
 - It names the Supabase project's URL (`https://` and `wss://` for Realtime) in `connect-src`. Update it if the project changes.
+- It allows `https://api.pdok.nl` in `connect-src`, for the address suggestions in `AddressInput`.
 - Images may come from any `https:` address, because owners can paste links.
 - Vercel's toolbar on preview deployments can show up as a violation; that's expected and doesn't affect the live site.
 
@@ -95,6 +96,7 @@ The portal has three tabs: `/partner` (orders: accept, move on, reject or cancel
 - `components/formHelpers.js`: `cardClass` (a page section on a translucent card), `noticeClass` (a yellow warning box), the input, textarea and button classes, and `parseAmount`/`formatAmount` for euro amounts as typed in forms ("12,50").
 - `PageMessage`: a centered message in place of a page's content, for loading, empty or failed pages (`tone="error"`).
 - `FormMessage`: a form's error or confirmation (`error`, `info`), with `role="alert"` or `role="status"` so screen readers announce it.
+- `AddressInput`: an address field that suggests Dutch addresses while typing, used for the restaurant's address. They come from PDOK's Locatieserver (`services/addresses.js`), the government's free search over the BAG address register: no key, no account. Picking a suggestion fills in the text, and typed text is accepted too, so a missing address or a PDOK outage never blocks the form. Only the text is saved, no coordinates. Wrap it in `<FormField controlId>`, because its list can't sit inside a `<label>`.
 - Pages that load data show an error when loading fails, not an empty result or "not found".
 - `closedNoticeKey(restaurant)` in `services/restaurants.js` picks the "closed" or "paused" notice.
 
