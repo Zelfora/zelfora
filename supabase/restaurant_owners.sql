@@ -187,7 +187,9 @@ begin
        or jsonb_array_length(grp->'choices') not between 1 and 30
        -- A group must be possible to fill in.
        or min_n <> trunc(min_n) or min_n < 0 or min_n > jsonb_array_length(grp->'choices')
-       or (max_n is not null and (max_n <> trunc(max_n) or max_n < 1 or max_n < min_n)) then
+       -- At most 99, as in the portal: validate_order reads max as an int, and
+       -- a larger number would make every order with this dish fail.
+       or (max_n is not null and (max_n <> trunc(max_n) or max_n < 1 or max_n > 99 or max_n < min_n)) then
       return false;
     end if;
     ids := ids || (grp->>'id');
