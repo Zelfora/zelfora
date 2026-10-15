@@ -1,22 +1,18 @@
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { ShoppingCart } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useTranslation } from '../context/LanguageContext';
+import AccountMenu from './AccountMenu';
 import LanguageSwitcher from './LanguageSwitcher';
-import ThemeSwitcher from './ThemeSwitcher';
-import Avatar from './Avatar';
 
+// The logo, and on the right: the link for restaurants, the language, the
+// cart, and the account menu or the sign-in button. Everything else about
+// the account (orders, profile, theme, signing out) is in the account menu.
 function Navbar() {
-  const { user, profile, ownsRestaurant, signOut } = useAuth();
+  const { user, ownsRestaurant } = useAuth();
   const { itemCount } = useCart();
   const { t } = useTranslation();
-  const navigate = useNavigate();
-
-  async function handleSignOut() {
-    await signOut();
-    navigate('/');
-  }
 
   return (
     <nav className="sticky top-0 z-50 border-b border-border bg-bg-elevated/80 backdrop-blur-md">
@@ -29,17 +25,16 @@ function Navbar() {
         </Link>
 
         <div className="flex items-center gap-2 sm:gap-4">
-          {/* Smaller screens reach the portal through the footer and the profile page. */}
+          {/* Phones reach the portal through the account menu and the footer. */}
           {ownsRestaurant !== null && (
-            <Link to="/partner" className="hidden text-sm text-text-muted hover:text-primary-300 lg:inline">
+            <Link to="/partner" className="hidden text-sm text-text-muted hover:text-primary-300 md:inline">
               {t(ownsRestaurant ? 'nav.myRestaurant' : 'nav.partner')}
             </Link>
           )}
-          <ThemeSwitcher />
           <LanguageSwitcher />
 
           {/* The count badge sticks out to the right, so on phones the cart
-              needs extra room before the profile button. */}
+              needs extra room before the account button. */}
           <Link
             to="/cart"
             className="relative mr-2 cursor-pointer text-text-muted transition-colors hover:text-primary-300 sm:mr-0"
@@ -54,29 +49,7 @@ function Navbar() {
           </Link>
 
           {user ? (
-            <div className="flex items-center gap-3">
-              <Link to="/orders" className="hidden text-sm text-text-muted hover:text-primary-300 md:inline">
-                {t('nav.orders')}
-              </Link>
-              <button
-                onClick={handleSignOut}
-                className="hidden rounded-pill border border-border px-4 py-2 text-sm font-medium text-text transition-colors hover:border-primary-500 sm:inline-block"
-              >
-                {t('nav.signOut')}
-              </button>
-              <NavLink
-                to="/profile"
-                aria-label={t('nav.profile')}
-                title={t('nav.profile')}
-                className={({ isActive }) =>
-                  `flex rounded-full transition-transform hover:scale-105 ${
-                    isActive ? 'shadow-glow-lg ring-2 ring-primary-300' : 'shadow-glow'
-                  }`
-                }
-              >
-                <Avatar src={profile?.avatar_url} name={user.email} className="h-9 w-9 text-sm" />
-              </NavLink>
-            </div>
+            <AccountMenu />
           ) : (
             <Link
               to="/login"

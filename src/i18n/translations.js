@@ -23,7 +23,9 @@ export const translations = {
     'nav.signIn': 'Inloggen',
     'nav.signOut': 'Uitloggen',
     'nav.language': 'Taal kiezen',
-    'nav.theme': 'Weergave kiezen',
+    'nav.theme': 'Weergave',
+    'nav.account': 'Mijn account',
+    'nav.signedInAs': 'Ingelogd als',
     'nav.partner': 'Voor restaurants',
     'nav.myRestaurant': 'Mijn restaurant',
 
@@ -370,7 +372,9 @@ export const translations = {
     'nav.signIn': 'Sign in',
     'nav.signOut': 'Sign out',
     'nav.language': 'Choose language',
-    'nav.theme': 'Choose theme',
+    'nav.theme': 'Appearance',
+    'nav.account': 'My account',
+    'nav.signedInAs': 'Signed in as',
     'nav.partner': 'For restaurants',
     'nav.myRestaurant': 'My restaurant',
 
@@ -716,7 +720,9 @@ export const translations = {
     'nav.signIn': 'Anmelden',
     'nav.signOut': 'Abmelden',
     'nav.language': 'Sprache wählen',
-    'nav.theme': 'Darstellung wählen',
+    'nav.theme': 'Darstellung',
+    'nav.account': 'Mein Konto',
+    'nav.signedInAs': 'Angemeldet als',
     'nav.partner': 'Für Restaurants',
     'nav.myRestaurant': 'Mein Restaurant',
 

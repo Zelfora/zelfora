@@ -4,6 +4,11 @@
 // A section of a page, such as a form or a list, on a translucent card.
 export const cardClass = 'rounded-card border border-border bg-surface/70 p-6 backdrop-blur-md';
 
+// The panel of a navbar dropdown, below the right edge of its button. Set a
+// min-width with it.
+export const dropdownPanelClass =
+  'absolute right-0 top-full mt-2 overflow-hidden rounded-card border border-border bg-bg-elevated/95 py-1 shadow-glow backdrop-blur-md';
+
 // A warning in the flow of a page, such as "this restaurant is closed".
 export const noticeClass = 'rounded-card border border-warn-400/50 bg-warn-400/10 p-4 text-sm text-text';
 

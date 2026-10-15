@@ -1,43 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
+import { useDropdown } from '../hooks/useDropdown';
+import { dropdownPanelClass } from './formHelpers';
 
-// Compact navbar menu for picking one option (language, theme, ...).
+// Compact navbar menu for picking one option (such as the language).
 // options: [{ value, label, icon, lang? }]
 function NavDropdown({ label, value, options, onChange, children }) {
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    if (!open) return;
-
-    // Any interaction elsewhere closes the menu: a press outside it (with
-    // touch this fires as soon as the finger lands, also when it goes on to
-    // scroll), any scrolling, or focus moving away.
-    function closeIfOutside(e) {
-      if (!containerRef.current?.contains(e.target)) setOpen(false);
-    }
-    function close() {
-      setOpen(false);
-    }
-    function handleKey(e) {
-      if (e.key === 'Escape') setOpen(false);
-    }
-
-    document.addEventListener('pointerdown', closeIfOutside);
-    document.addEventListener('focusin', closeIfOutside);
-    // Scroll events don't bubble; capturing also catches scrolling panels.
-    document.addEventListener('scroll', close, { capture: true, passive: true });
-    // Also when the page is already at its end and doesn't move.
-    window.addEventListener('wheel', close, { passive: true });
-    document.addEventListener('keydown', handleKey);
-    return () => {
-      document.removeEventListener('pointerdown', closeIfOutside);
-      document.removeEventListener('focusin', closeIfOutside);
-      document.removeEventListener('scroll', close, { capture: true });
-      window.removeEventListener('wheel', close);
-      document.removeEventListener('keydown', handleKey);
-    };
-  }, [open]);
+  const { open, setOpen, containerRef, buttonRef } = useDropdown();
 
   function choose(next) {
     onChange(next);
@@ -47,6 +15,7 @@ function NavDropdown({ label, value, options, onChange, children }) {
   return (
     <div ref={containerRef} className="relative">
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
@@ -60,10 +29,7 @@ function NavDropdown({ label, value, options, onChange, children }) {
       </button>
 
       {open && (
-        <ul
-          role="menu"
-          className="absolute right-0 top-full mt-2 min-w-40 overflow-hidden rounded-card border border-border bg-bg-elevated/95 py-1 shadow-glow backdrop-blur-md"
-        >
+        <ul role="menu" className={`min-w-40 ${dropdownPanelClass}`}>
           {options.map((option) => (
             <li key={option.value} role="none">
               <button
