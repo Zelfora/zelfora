@@ -17,6 +17,8 @@ import Profile from './pages/Profile';
 // large part of the code, so customers never download it. See main.jsx for
 // what happens when it fails to load after a new deployment.
 const Partner = lazy(() => import('./pages/Partner'));
+// The privacy statement is long text in three languages that few visitors open.
+const Privacy = lazy(() => import('./pages/Privacy'));
 
 function App() {
   const { t } = useTranslation();
@@ -32,6 +34,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/partner/:tab?" element={<Partner />} />
+            <Route path="/privacy" element={<Privacy />} />
             <Route
               path="/cart"
               element={

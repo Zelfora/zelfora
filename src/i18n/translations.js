@@ -180,6 +180,10 @@ export const translations = {
     'profile.viewOrders': 'Bekijk mijn bestellingen',
     'profile.photo': 'Profielfoto',
 
+    'privacy.title': 'Privacyverklaring',
+    'privacy.updated': 'Laatst bijgewerkt: {date}',
+    'footer.privacy': 'Privacy',
+
     'form.optional': 'optioneel',
     'form.addressSuggestions': 'Adressuggesties',
 
@@ -528,6 +532,10 @@ export const translations = {
     'profile.passwordChanged': 'Your password has been changed.',
     'profile.viewOrders': 'View my orders',
     'profile.photo': 'Profile photo',
+
+    'privacy.title': 'Privacy statement',
+    'privacy.updated': 'Last updated: {date}',
+    'footer.privacy': 'Privacy',
 
     'form.optional': 'optional',
     'form.addressSuggestions': 'Address suggestions',
@@ -879,6 +887,10 @@ export const translations = {
     'profile.passwordChanged': 'Dein Passwort wurde geändert.',
     'profile.viewOrders': 'Meine Bestellungen ansehen',
     'profile.photo': 'Profilfoto',
+
+    'privacy.title': 'Datenschutzerklärung',
+    'privacy.updated': 'Zuletzt aktualisiert: {date}',
+    'footer.privacy': 'Datenschutz',
 
     'form.optional': 'optional',
     'form.addressSuggestions': 'Adressvorschläge',
