@@ -108,6 +108,19 @@ export function AuthProvider({ children }) {
     if (error) throw error;
   }
 
+  // Sends the browser to the provider ('google'), which sends it back to
+  // /login, signed in or with the error in the address. The page to continue
+  // to travels along as ?next=. /login must be allowed under Auth > URL
+  // Configuration > Redirect URLs, otherwise Supabase falls back to the Site URL.
+  async function signInWithProvider(provider, redirectPath = '/') {
+    const next = redirectPath === '/' ? '' : `?next=${encodeURIComponent(redirectPath)}`;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: `${window.location.origin}/login${next}` },
+    });
+    if (error) throw error;
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
   }
@@ -152,6 +165,7 @@ export function AuthProvider({ children }) {
     markRestaurantOwned,
     signUp,
     signIn,
+    signInWithProvider,
     signOut,
     sendPasswordReset,
     updatePassword,

@@ -15,6 +15,11 @@ function Profile() {
   const i18n = useTranslation();
   const { t, formatDate } = i18n;
   const navigate = useNavigate();
+  // How the account signs in: 'email' (with a password), 'google', or both
+  // after a Google sign-in with the same address. Google-only accounts have
+  // no password to change.
+  const providers = user.app_metadata?.providers ?? ['email'];
+  const hasPassword = providers.includes('email');
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -67,6 +72,8 @@ function Profile() {
           <dd className="truncate text-text">{user.email}</dd>
           <dt className="text-text-muted">{t('profile.memberSince')}</dt>
           <dd className="text-text">{formatDate(user.created_at, { dateStyle: 'long' })}</dd>
+          <dt className="text-text-muted">{t('profile.signInMethod')}</dt>
+          <dd className="text-text">{providers.map((p) => t(`profile.method.${p}`)).join(', ')}</dd>
         </dl>
         <div className="mt-5 flex flex-wrap gap-3">
           <Link to="/orders" className={`${accountButtonClass} hover:border-primary-500`}>
@@ -89,55 +96,57 @@ function Profile() {
         />
       </section>
 
-      <section className={cardClass}>
-        <h2 className="mb-4 font-display text-lg font-semibold text-text">{t('profile.changePassword')}</h2>
-        <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
-          {/* Hidden username field lets password managers update the right entry. */}
-          <input type="email" autoComplete="username" value={user.email} readOnly hidden />
-          <input
-            type="password"
-            required
-            autoComplete="current-password"
-            aria-label={t('password.current')}
-            placeholder={t('password.current')}
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            className={inputClass}
-          />
-          <input
-            type="password"
-            required
-            minLength={8}
-            autoComplete="new-password"
-            aria-label={t('password.new')}
-            placeholder={t('password.new')}
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            className={inputClass}
-          />
-          <input
-            type="password"
-            required
-            minLength={8}
-            autoComplete="new-password"
-            aria-label={t('password.repeat')}
-            placeholder={t('password.repeat')}
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            className={inputClass}
-          />
+      {hasPassword && (
+        <section className={cardClass}>
+          <h2 className="mb-4 font-display text-lg font-semibold text-text">{t('profile.changePassword')}</h2>
+          <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
+            {/* Hidden username field lets password managers update the right entry. */}
+            <input type="email" autoComplete="username" value={user.email} readOnly hidden />
+            <input
+              type="password"
+              required
+              autoComplete="current-password"
+              aria-label={t('password.current')}
+              placeholder={t('password.current')}
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className={inputClass}
+            />
+            <input
+              type="password"
+              required
+              minLength={8}
+              autoComplete="new-password"
+              aria-label={t('password.new')}
+              placeholder={t('password.new')}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className={inputClass}
+            />
+            <input
+              type="password"
+              required
+              minLength={8}
+              autoComplete="new-password"
+              aria-label={t('password.repeat')}
+              placeholder={t('password.repeat')}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              className={inputClass}
+            />
 
-          <FormMessage error={error} info={info} />
+            <FormMessage error={error} info={info} />
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className={`mt-2 ${primaryButtonClass}`}
-          >
-            {submitting ? t('common.pleaseWait') : t('profile.savePassword')}
-          </button>
-        </form>
-      </section>
+            <button
+              type="submit"
+              disabled={submitting}
+              className={`mt-2 ${primaryButtonClass}`}
+            >
+              {submitting ? t('common.pleaseWait') : t('profile.savePassword')}
+            </button>
+          </form>
+        </section>
+      )}
     </main>
   );
 }
