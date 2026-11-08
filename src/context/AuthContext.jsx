@@ -1,9 +1,11 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
+import { useTranslation } from './LanguageContext';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
+  const { lang } = useTranslation();
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   // Whether this session came from a password recovery link, which is the
@@ -91,13 +93,14 @@ export function AuthProvider({ children }) {
   // Returns the new session when email confirmation is disabled, otherwise null.
   // The confirmation link brings the user back to redirectPath. Paths other than
   // "/" must be allowed under Auth > URL Configuration > Redirect URLs, otherwise
-  // Supabase falls back to the Site URL.
+  // Supabase falls back to the Site URL. The language is kept in the user's
+  // metadata, so the emails in supabase/email_templates can pick it.
   async function signUp(email, password, redirectPath = '/') {
     const path = redirectPath === '/' ? '' : redirectPath;
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${window.location.origin}${path}` },
+      options: { emailRedirectTo: `${window.location.origin}${path}`, data: { lang } },
     });
     if (error) throw error;
     return data.session;
